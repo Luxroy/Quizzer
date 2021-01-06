@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>903</width>
-    <height>700</height>
+    <width>483</width>
+    <height>492</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,28 +15,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0">
-     <widget class="QLabel" name="label_status">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>800</width>
-        <height>20</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>Status</string>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="0">
      <widget class="QFrame" name="home_frame">
       <property name="frameShape">
@@ -82,6 +60,12 @@
        </item>
        <item row="2" column="0">
         <widget class="QLabel" name="label_questionnare">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
          <property name="text">
           <string>Questionnares</string>
          </property>
@@ -92,6 +76,12 @@
        </item>
        <item row="2" column="2">
         <widget class="QLabel" name="label_quiz">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
          <property name="text">
           <string>Quizzes</string>
          </property>
@@ -121,7 +111,7 @@
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap>ezgif.com-gif-maker.gif</pixmap>
+          <pixmap>quiz-icon.gif</pixmap>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -142,13 +132,25 @@
            <height>100</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>21</pointsize>
+           <weight>75</weight>
+           <italic>false</italic>
+           <bold>true</bold>
+           <underline>false</underline>
+          </font>
+         </property>
          <property name="text">
           <string>Quizzes App</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
          </property>
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="label_questionnare_description">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
            <horstretch>40</horstretch>
@@ -162,7 +164,10 @@
           </size>
          </property>
          <property name="text">
-          <string>TextLabel</string>
+          <string>Create your own questionnares and prepare them to transform into quizzes!</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -174,9 +179,9 @@
         </widget>
        </item>
        <item row="3" column="2">
-        <widget class="QLabel" name="label_2">
+        <widget class="QLabel" name="label_quizzes_description">
          <property name="text">
-          <string>TextLabel</string>
+          <string>Test your own quizzes!</string>
          </property>
         </widget>
        </item>
@@ -190,7 +195,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>903</width>
+     <width>483</width>
      <height>21</height>
     </rect>
    </property>
