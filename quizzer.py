@@ -223,7 +223,7 @@ class UiQuizMainWindow(object):
         self.finish_quiz_button.setAutoDefault(False)
         self.finish_quiz_button.setDefault(False)
         self.finish_quiz_button.setFlat(False)
-        self.finish_quiz_button.setObjectName("dinish_quiz_button")
+        self.finish_quiz_button.setObjectName("finish_quiz_button")
         self.gridLayout.addWidget(self.finish_quiz_button, 30, 0, 1, 4)
         self.label_tag_1 = QtWidgets.QLabel(self.quiz_right_frame)
         self.label_tag_1.setEnabled(True)
@@ -388,11 +388,11 @@ class UiQuizMainWindow(object):
 class UiQuestionnareMainWindow(object):
     def __init__(self):
         super().__init__()
-        QuestionnareMainWindow.setObjectName("QuesttionareMainWindow")
+        QuestionnareMainWindow.setObjectName("QuestionnaireMainWindow")
         QuestionnareMainWindow.resize(686, 726)
         QuestionnareMainWindow.setGeometry(800, 300, 500, 500)
         self.questionnare_main_widget = QtWidgets.QWidget(QuestionnareMainWindow)
-        self.questionnare_main_widget.setObjectName("questtionare_main_widget")
+        self.questionnare_main_widget.setObjectName("questionnaire_main_widget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.questionnare_main_widget)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.questionnare_left_frame = QtWidgets.QFrame(self.questionnare_main_widget)
@@ -404,7 +404,7 @@ class UiQuestionnareMainWindow(object):
         self.questionnare_left_frame.setMinimumSize(QtCore.QSize(180, 0))
         self.questionnare_left_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.questionnare_left_frame.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.questionnare_left_frame.setObjectName("quiestionnare_left_frame")
+        self.questionnare_left_frame.setObjectName("questionnaire_left_frame")
         self.formLayout = QtWidgets.QFormLayout(self.questionnare_left_frame)
         self.formLayout.setObjectName("formLayout")
         self.new_questionnare_button = QtWidgets.QPushButton(self.questionnare_left_frame)
@@ -447,10 +447,14 @@ class UiQuestionnareMainWindow(object):
         self.change_quiz_button = QtWidgets.QPushButton(self.questionnare_left_frame)
         self.change_quiz_button.setObjectName("change_quiz_button")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.SpanningRole, self.change_quiz_button)
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.formLayout.setItem(5, QtWidgets.QFormLayout.SpanningRole, spacerItem)
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.formLayout.setItem(6, QtWidgets.QFormLayout.SpanningRole, spacerItem1)
+        # UI CHANGE ----------------------------------------------------------------------------------------------
+        self.modify_questionnare_title_button = QtWidgets.QPushButton()
+        self.modify_questionnare_title_button.setText("Modify Questionnare Title")
+        self.formLayout.setWidget(5, QtWidgets.QFormLayout.SpanningRole, self.modify_questionnare_title_button)
+        self.delete_questionnare_button = QtWidgets.QPushButton()
+        self.delete_questionnare_button.setText("Delete Questionnare")
+        self.formLayout.setWidget(6, QtWidgets.QFormLayout.SpanningRole, self.delete_questionnare_button)
+        # UI CHANGE FINISH ---------------------------------------------------------------------------------------
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.formLayout.setItem(7, QtWidgets.QFormLayout.SpanningRole, spacerItem2)
         spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -557,7 +561,7 @@ class UiQuestionnareMainWindow(object):
         self.question_line_edit.setObjectName("question_line_edit")
         self.gridLayout.addWidget(self.question_line_edit, 8, 0, 1, 5)
         self.label_questionnare_details = QtWidgets.QLabel(self.questionnare_right_frame)
-        self.label_questionnare_details.setObjectName("label_questtionare_details")
+        self.label_questionnare_details.setObjectName("label_questionnaire_details")
         self.gridLayout.addWidget(self.label_questionnare_details, 2, 0, 1, 5)
         self.label_add_tag = QtWidgets.QLabel(self.questionnare_right_frame)
         self.label_add_tag.setObjectName("label_add_tag")
@@ -618,10 +622,22 @@ class UiQuestionnareMainWindow(object):
 
         # Additional init
         self.path = os.getcwd()
-        self.questionnare_right_frame.setEnabled(False)
         for file in os.listdir():  # Adds current saved quizzes to main list widget
             if file.startswith("Quiz"):
                 self.main_list_widget.addItem(file[5:-5])
+        if self.main_list_widget.count() == 0:
+            self.questionnare_right_frame.setEnabled(False)
+        else:
+            self.questionnare_status_bar.showMessage(f"Active Questionnare: {self.main_list_widget.item(0).text()}")
+            self.active_questionnare = self.main_list_widget.item(0).text()
+            self.label_project_title_questionnare.setText(self.active_questionnare)
+            self.label_number_of_questions.setText("# of questions: 0")
+            self.label_average_difficulty.setText("Average Difficulty: Pending...")
+            self.questionnare_status_bar.showMessage(f"Active Questionnare: {self.active_questionnare}")
+
+        # Class Variables
+        self.window = QtWidgets.QWidget()
+        self.window.setGeometry(800, 300, 500, 500)
 
         # UI changes
         self.menuOpciones = QtWidgets.QMenu(self.questionnare_menu_bar)
@@ -630,38 +646,42 @@ class UiQuestionnareMainWindow(object):
         # Connections
         self.go_to_quizbutton.clicked.connect(self.switch_to_quiz)
         self.new_questionnare_button.clicked.connect(self.new_questionnare)
+        self.modify_questionnare_title_button.clicked.connect(self.modify_title)
+        self.delete_questionnare_button.clicked.connect(self.delete_questionnare)
+        self.new_question_button.clicked.connect(self.new_question)
 
     def textify(self, QuestionnareMainWindow):
         _translate = QtCore.QCoreApplication.translate
-        QuestionnareMainWindow.setWindowTitle(_translate("QuesttionareMainWindow", "Questionnare"))
-        self.new_questionnare_button.setText(_translate("QuesttionareMainWindow", "(+)"))
-        self.label_new_questionnare.setText(_translate("QuesttionareMainWindow", "New Questionnare \n"
-                                                                                 "(This goes first!)"))
-        self.new_question_button.setText(_translate("QuesttionareMainWindow", "(+++)"))
-        self.label_new_question.setText(_translate("QuesttionareMainWindow", "New Question"))
-        self.label_project_nav.setText(_translate("QuesttionareMainWindow", "Click here to navigate through projects:"))
-        self.change_quiz_button.setText(_translate("QuesttionareMainWindow", "Select current questionnare"))
-        self.go_to_quizbutton.setText(_translate("QuesttionareMainWindow", "Lets take a\n"
-                                                                             " Quiz!"))
-        self.medium_check_box.setText(_translate("QuesttionareMainWindow", "Medium (+3 points)"))
-        self.label_number_of_questions.setText(_translate("QuesttionareMainWindow", "# of questions:"))
-        self.remove_tag_button.setText(_translate("QuesttionareMainWindow", "(-)"))
-        self.add_tag_to_question_button.setText(_translate("QuesttionareMainWindow", "Add tag >"))
-        self.label_tags.setText(_translate("QuesttionareMainWindow", "Tags"))
-        self.add_question_button.setText(_translate("QuesttionareMainWindow", "(✓) Add Question!"))
-        self.add_tag_button.setText(_translate("QuesttionareMainWindow", "(+)"))
-        self.easy_check_box.setText(_translate("QuesttionareMainWindow", "Easy (+1 point)"))
-        self.label_average_difficulty.setText(_translate("QuesttionareMainWindow", "Average Difficulty:"))
-        self.label_project_title_questionnare.setText(_translate("QuesttionareMainWindow", "Questionnare Title"))
-        self.label_remove_tag.setText(_translate("QuesttionareMainWindow", "Remove Tag"))
-        self.possible_wrong_answers_check_box.setText(_translate("QuesttionareMainWindow", "Possible Wrong Answers"))
-        self.label_questionnare_details.setText(_translate("QuesttionareMainWindow", "Questionnare Details:"))
-        self.label_add_tag.setText(_translate("QuesttionareMainWindow", "Add Tag"))
-        self.cancel_button.setText(_translate("QuesttionareMainWindow", "(X) Cancel"))
-        self.label_answer.setText(_translate("QuesttionareMainWindow", "Answer"))
-        self.label_question.setText(_translate("QuesttionareMainWindow", "Question"))
-        self.expert_check_box.setText(_translate("QuesttionareMainWindow", "Expert (+7 points)"))
-        self.hard_check_box.setText(_translate("QuesttionareMainWindow", "Hard (+5 points)"))
+        QuestionnareMainWindow.setWindowTitle(_translate("QuestionnaireMainWindow", "Questionnare"))
+        self.new_questionnare_button.setText(_translate("QuestionnaireMainWindow", "(+)"))
+        self.label_new_questionnare.setText(_translate("QuestionnaireMainWindow", "New Questionnare \n"
+                                                                                  "(This goes first!)"))
+        self.new_question_button.setText(_translate("QuestionnaireMainWindow", "(+++)"))
+        self.label_new_question.setText(_translate("QuestionnaireMainWindow", "New Question"))
+        self.label_project_nav.setText(
+            _translate("QuestionnaireMainWindow", "Click here to navigate through projects:"))
+        self.change_quiz_button.setText(_translate("QuestionnaireMainWindow", "Select current questionnare"))
+        self.go_to_quizbutton.setText(_translate("QuestionnaireMainWindow", "Lets take a\n"
+                                                                            " Quiz!"))
+        self.medium_check_box.setText(_translate("QuestionnaireMainWindow", "Medium (+3 points)"))
+        self.label_number_of_questions.setText(_translate("QuestionnaireMainWindow", "# of questions:"))
+        self.remove_tag_button.setText(_translate("QuestionnaireMainWindow", "(-)"))
+        self.add_tag_to_question_button.setText(_translate("QuestionnaireMainWindow", "Add tag >"))
+        self.label_tags.setText(_translate("QuestionnaireMainWindow", "Tags"))
+        self.add_question_button.setText(_translate("QuestionnaireMainWindow", "(✓) Add Question!"))
+        self.add_tag_button.setText(_translate("QuestionnaireMainWindow", "(+)"))
+        self.easy_check_box.setText(_translate("QuestionnaireMainWindow", "Easy (+1 point)"))
+        self.label_average_difficulty.setText(_translate("QuestionnaireMainWindow", "Average Difficulty:"))
+        self.label_project_title_questionnare.setText(_translate("QuestionnaireMainWindow", "Questionnare Title"))
+        self.label_remove_tag.setText(_translate("QuestionnaireMainWindow", "Remove Tag"))
+        self.possible_wrong_answers_check_box.setText(_translate("QuestionnaireMainWindow", "Possible Wrong Answers"))
+        self.label_questionnare_details.setText(_translate("QuestionnaireMainWindow", "Questionnare Details:"))
+        self.label_add_tag.setText(_translate("QuestionnaireMainWindow", "Add Tag"))
+        self.cancel_button.setText(_translate("QuestionnaireMainWindow", "(X) Cancel"))
+        self.label_answer.setText(_translate("QuestionnaireMainWindow", "Answer"))
+        self.label_question.setText(_translate("QuestionnaireMainWindow", "Question"))
+        self.expert_check_box.setText(_translate("QuestionnaireMainWindow", "Expert (+7 points)"))
+        self.hard_check_box.setText(_translate("QuestionnaireMainWindow", "Hard (+5 points)"))
 
     @staticmethod
     def switch_to_quiz():
@@ -669,19 +689,51 @@ class UiQuestionnareMainWindow(object):
         QuizMainWindow.show()
 
     def new_questionnare(self):
-        window = QtWidgets.QWidget()
-        window.setGeometry(800, 300, 500, 500)
-        quiz_title, ok = QtWidgets.QInputDialog.getText(window, "Create a Quiz", "Select a title for your "
-                                                                                 "questionnare: ",
+        quiz_title, ok = QtWidgets.QInputDialog.getText(self.window, "Create a Quiz", "Select a title for your "
+                                                                                      "questionnare: ",
                                                         QtWidgets.QLineEdit.Normal)
         if ok and quiz_title:
             wb = xlsxwriter.Workbook(f"Quiz_{quiz_title}.xlsx")
-            self.label_project_title_questionnare.setText(quiz_title)
             wb.close()
+            questionnare_ui.__init__()
+
+    def new_question(self):
+        if self.main_list_widget.count() == 0:
+            ask = QtWidgets.QMessageBox.question(self.window, "No quiz created", "It appears you have not created "
+                                                                                 "a quiz yet to assign this question\n"
+                                                                                 "\nWould you like to create one now?")
+            if ask == QMessageBox.Yes:
+                self.new_questionnare()
+
+    def modify_title(self):
+        window = QtWidgets.QWidget()
+        window.setGeometry(800, 300, 500, 500)
+        new_title, ok = QtWidgets.QInputDialog.getText(window, "Change Questionnare Title",
+                                                       'Select new questionnare title',
+                                                       QtWidgets.QLineEdit.Normal)
+        if new_title and ok:
+            old_title = f"Quiz_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
+            new_title = f"Quiz_{new_title}.xlsx"
+            wb = openpyxl.load_workbook(old_title)
+            wb.save(new_title)
+            wb.close()
+            os.remove(old_title)
+            questionnare_ui.__init__()
+
+    def delete_questionnare(self):
+        confirmation = QtWidgets.QMessageBox.question(self.window, "Confirmation",
+                                                      "Are you sure you want to permanently delete this questionnare:")
+        if confirmation == QMessageBox.Yes:
+            deleted_quiz = f"Quiz_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
+            os.remove(deleted_quiz)
+            questionnare_ui.__init__()
+        else:
+            self.generic_information("", "Questionnare was not deleted.")
 
     @staticmethod
     def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
         parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
         parent.setWindowTitle(title)
         parent.setText(text)
         parent.setIcon(icon)
@@ -690,6 +742,7 @@ class UiQuestionnareMainWindow(object):
     @staticmethod
     def generic_error(title="Error", text="Error Details", icon=QMessageBox.Information):
         parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
         parent.setWindowTitle(title)
         parent.setText(text)
         parent.setIcon(icon)
@@ -827,13 +880,13 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
-    ui = QuizzerMainWindow()
-    ui.__init__()
+    quizzer_ui = QuizzerMainWindow()
+    quizzer_ui.__init__()
     MainWindow.show()
     QuizMainWindow = QtWidgets.QMainWindow()
-    ui2 = UiQuizMainWindow()
-    ui2.__init__()
+    quiz_ui = UiQuizMainWindow()
+    quiz_ui.__init__()
     QuestionnareMainWindow = QtWidgets.QMainWindow()
-    ui3 = UiQuestionnareMainWindow()
-    ui3.__init__()
+    questionnare_ui = UiQuestionnareMainWindow()
+    questionnare_ui.__init__()
     sys.exit(app.exec_())
