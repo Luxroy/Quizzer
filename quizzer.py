@@ -523,6 +523,7 @@ class UiQuestionnaireMainWindow(object):
         spacerItem5 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem5, 5, 0, 1, 1)
         self.tag_combo_box = QtWidgets.QComboBox(self.questionnaire_right_frame)
+        self.tag_combo_box.setFixedHeight(23)  # UI SIZE CHANGED
         self.tag_combo_box.setStyleSheet("background-color: rgb(0, 0, 0);\n"
                                          "color: rgb(255, 255, 255);")
         self.tag_combo_box.setObjectName("tag_combo_box")
@@ -662,6 +663,8 @@ class UiQuestionnaireMainWindow(object):
         self.add_question_button.clicked.connect(self.new_question)
         self.select_current_questionnaire.clicked.connect(self.select_current)
         self.delete_question_button.clicked.connect(self.delete_question)
+        self.add_tag_button.clicked.connect(self.add_tags)
+        self.remove_tag_button.clicked.connect(self.remove_tags)
 
     def textify(self, questionnaireMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -699,11 +702,19 @@ class UiQuestionnaireMainWindow(object):
     def set_active_questionnaire(self, index=0):
         wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         sheet = wb.active
+        question_list = []
+        for cell in sheet["A"]:
+            if cell.value != "QUESTIONS":
+                question_list.append(cell.value)
         self.label_number_of_questions.setText(f"""# of Questions: {str(len(sheet["A"]) - 1)}""")  # QUESTIONS
         self.label_question.setText(f"""Question {str(len(sheet["A"]))}:""")
         self.questionnaire_status_bar.showMessage(f"Active questionnaire: "
                                                   f"{self.main_list_widget.item(index).text()}")
         self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
+        self.tag_combo_box.clear()
+        for cell in sheet["B"]:  # TAGS
+            if cell.value != "TAGS":
+                self.tag_combo_box.addItem(cell.value)
         if len(sheet["C"]) > 1:  # DIFFICULTY
             print(len(sheet["C"]))  # TODO: Change this for an average of all numeric values in sheet "C"
         else:
@@ -817,6 +828,36 @@ class UiQuestionnaireMainWindow(object):
                                "Please select a quiz which contains the question you want to delete")
         else:
             pass  # TODO: Show complex messagebox, containing dropdown of questions
+
+    def add_tags(self):
+        tag, ok = QtWidgets.QInputDialog.getText(self.window,
+                                                 "Add tag", "Enter tag name", QtWidgets.QLineEdit.Normal)
+        if tag and ok:
+            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            sheet = wb.active
+            sheet["B" + str(sheet.max_row + 1)] = tag
+            self.tag_combo_box.addItem(tag)
+            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.close()
+
+    def remove_tags(self):
+        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        sheet = wb.active
+        tag_list = []
+        for cell in sheet["B"]:
+            if cell.value != "TAGS":
+                tag_list.append(cell.value)
+        tag, ok = QtWidgets.QInputDialog.getItem(self.window, "Delete a tag",
+                                                 "Please select a tag from the dropdown list to delete it.",
+                                                 tag_list, 0, False)
+        if tag and ok:
+            index = tag_list.index(tag)
+            for cell in sheet["B"]:
+                if cell.value == tag:
+                    sheet[cell.coordinate] = ""
+                    self.tag_combo_box.removeItem(index)
+        wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb.close()
 
     @staticmethod
     def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
