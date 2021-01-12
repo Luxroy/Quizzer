@@ -623,6 +623,29 @@ class UiQuestionnaireMainWindow(object):
         self.possible_wrong_answers_check_box.toggled['bool'].connect(self.wrong_answer_text_edit_3.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(questionnaireMainWindow)
 
+        # Class Variables
+        self.window = QtWidgets.QWidget()
+        self.window.setGeometry(800, 300, 500, 500)
+
+        # UI Additions
+        self.menuOpciones = QtWidgets.QMenu(self.questionnaire_menu_bar)
+        self.menuOpciones.setTitle("Opciones")
+        self.label_added_tag_one = QtWidgets.QLabel(self.questionnaire_right_frame)
+        self.label_added_tag_one.setText("")
+        self.gridLayout.addWidget(self.label_added_tag_one, 7, 3, 1, 1)
+        self.label_added_tag_two = QtWidgets.QLabel(self.questionnaire_right_frame)
+        self.label_added_tag_two.setText("")
+        self.gridLayout.addWidget(self.label_added_tag_two, 7, 4, 1, 1)
+        # Placeholder texts
+        self.question_line_edit.setPlaceholderText("Your question goes here:")
+        self.answer_text_edit.setPlaceholderText("Your answer goes here:")
+        self.wrong_answer_text_edit_1.setPlaceholderText("Your wrong answer goes here: (Trickery)")
+        self.wrong_answer_text_edit_2.setPlaceholderText("Your wrong answer goes here: (Banditry)")
+        self.wrong_answer_text_edit_3.setPlaceholderText("Your wrong answer goes here: (Deception)")
+        # Tooltips
+        self.new_questionnaire_button.setToolTip("You can add new Questionnaires here!")
+        self.select_current_questionnaire.setToolTip("Select a Questionnaire from above to set it as active")
+
         # Added tab order
         MainWindow.setTabOrder(self.question_line_edit, self.answer_text_edit)
 
@@ -636,24 +659,6 @@ class UiQuestionnaireMainWindow(object):
         else:
             self.set_active_questionnaire(self.main_list_widget.count() - 1)
 
-        # Class Variables
-        self.window = QtWidgets.QWidget()
-        self.window.setGeometry(800, 300, 500, 500)
-
-        # UI Additions
-        self.menuOpciones = QtWidgets.QMenu(self.questionnaire_menu_bar)
-        self.menuOpciones.setTitle("Opciones")
-        # Placeholder texts
-        self.question_line_edit.setPlaceholderText("Your question goes here:")
-        self.answer_text_edit.setPlaceholderText("Your answer goes here:")
-        self.wrong_answer_text_edit_1.setPlaceholderText("Your wrong answer goes here: (Trickery)")
-        self.wrong_answer_text_edit_2.setPlaceholderText("Your wrong answer goes here: (Banditry)")
-        self.wrong_answer_text_edit_3.setPlaceholderText("Your wrong answer goes here: (Deception)")
-        # Tooltips
-        self.new_questionnaire_button.setToolTip("You can add new Questionnaires here!")
-        self.main_list_widget.item(0).setToolTip("This are your Questionnaires")
-        self.select_current_questionnaire.setToolTip("Select a Questionnaire from above to set it as active")
-
         # Connections
         self.go_to_quizbutton.clicked.connect(self.switch_to_quiz)
         self.new_questionnaire_button.clicked.connect(self.new_questionnaire)
@@ -665,6 +670,7 @@ class UiQuestionnaireMainWindow(object):
         self.delete_question_button.clicked.connect(self.delete_question)
         self.add_tag_button.clicked.connect(self.add_tags)
         self.remove_tag_button.clicked.connect(self.remove_tags)
+        self.add_tag_to_question_button.clicked.connect(self.add_tag_to_question)
 
     def textify(self, questionnaireMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -704,10 +710,10 @@ class UiQuestionnaireMainWindow(object):
         sheet = wb.active
         question_list = []
         for cell in sheet["A"]:
-            if cell.value != "QUESTIONS":
+            if cell.value != "QUESTIONS" and cell.value is not None:
                 question_list.append(cell.value)
-        self.label_number_of_questions.setText(f"""# of Questions: {str(len(sheet["A"]) - 1)}""")  # QUESTIONS
-        self.label_question.setText(f"""Question {str(len(sheet["A"]))}:""")
+        self.label_number_of_questions.setText(f"""# of Questions: {len(question_list)}""")  # QUESTIONS
+        self.label_question.setText(f"""Question {len(question_list) + 1}:""")
         self.questionnaire_status_bar.showMessage(f"Active questionnaire: "
                                                   f"{self.main_list_widget.item(index).text()}")
         self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
@@ -715,8 +721,19 @@ class UiQuestionnaireMainWindow(object):
         for cell in sheet["B"]:  # TAGS
             if cell.value != "TAGS":
                 self.tag_combo_box.addItem(cell.value)
-        if len(sheet["C"]) > 1:  # DIFFICULTY
-            print(len(sheet["C"]))  # TODO: Change this for an average of all numeric values in sheet "C"
+        current_question = int(self.label_question.text().replace(":", "")[9:])  # QUESTION TAGS
+        if sheet["C" + str(current_question + 1)].value is not None:
+            tags = sheet["C" + str(current_question + 1)].value.split("//")
+            self.label_added_tag_one.setText(tags[0])
+            try:
+                self.label_added_tag_two.setText(tags[1])
+            except IndexError:
+                pass
+        else:
+            self.label_added_tag_one.setText("")
+            self.label_added_tag_two.setText("")
+        if len(sheet["H"]) > 1:  # DIFFICULTY
+            print(len(sheet["H"]))  # TODO: Change this for an average of all numeric values in sheet "H"
         else:
             self.label_average_difficulty.setText("Average Difficulty: Pending...")
         wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
@@ -727,30 +744,32 @@ class UiQuestionnaireMainWindow(object):
                                                                                       "questionnaire: ",
                                                         QtWidgets.QLineEdit.Normal)
         if ok and quiz_title:
-            wb = xlsxwriter.Workbook(f"Quiz_{quiz_title}.xlsx")
+            wb = xlsxwriter.Workbook(f"Quiz_{quiz_title.upper()}.xlsx")
             wb.close()
-            open_workbook = openpyxl.load_workbook(f"Quiz_{quiz_title}.xlsx")
+            open_workbook = openpyxl.load_workbook(f"Quiz_{quiz_title.upper()}.xlsx")
             sheet = open_workbook.active
             # Formatting
             sheet["A1"] = "QUESTIONS"
             sheet["B1"] = "TAGS"
-            sheet["C1"] = "DIFFICULTY"
+            sheet["C1"] = "QUESTION TAGS"
             sheet["D1"] = "ANSWER"
             sheet["E1"] = "WRONG ANSWER 1"
             sheet["F1"] = "WRONG ANSWER 2"
             sheet["G1"] = "WRONG ANSWER 3"
+            sheet["H1"] = "DIFFICULTY"
             # Column width
             sheet.column_dimensions["A"].width = 30
             sheet.column_dimensions["B"].width = 24
-            sheet.column_dimensions["C"].width = 12
+            sheet.column_dimensions["C"].width = 24
             sheet.column_dimensions["D"].width = 30
             sheet.column_dimensions["E"].width = 30
             sheet.column_dimensions["F"].width = 30
             sheet.column_dimensions["G"].width = 30
+            sheet.column_dimensions["H"].width = 15
             # Filter and freeze
-            sheet.auto_filter.ref = "A1:g1"
+            sheet.auto_filter.ref = "A1:H1"
             sheet.freeze_panes = "A2"
-            open_workbook.save(f"Quiz_{quiz_title}.xlsx")
+            open_workbook.save(f"Quiz_{quiz_title.upper()}.xlsx")
             open_workbook.close()
             questionnaire_ui.__init__()
 
@@ -835,8 +854,8 @@ class UiQuestionnaireMainWindow(object):
         if tag and ok:
             wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
-            sheet["B" + str(sheet.max_row + 1)] = tag
-            self.tag_combo_box.addItem(tag)
+            sheet["B" + str(sheet.max_row + 1)] = tag.upper()
+            self.tag_combo_box.addItem(tag.upper())
             wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
 
@@ -856,6 +875,38 @@ class UiQuestionnaireMainWindow(object):
                 if cell.value == tag:
                     sheet[cell.coordinate] = ""
                     self.tag_combo_box.removeItem(index)
+        wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb.close()
+
+    def add_tag_to_question(self):
+        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        sheet = wb.active
+        current_tag_one = self.label_added_tag_one.text()
+        current_tag_two = self.label_added_tag_two.text()
+        # Very delicate, if program breaks, high sus
+        current_question = int(self.label_question.text().replace(":", "")[9:])
+        if current_tag_one != "" and current_tag_two != "":  # Reverse functionality, to remove tags
+            self.label_added_tag_one.setText("")
+            self.label_added_tag_two.setText("")
+            self.add_tag_to_question_button.setText("Add tag >")
+            sheet["C" + str(current_question + 1)].value = None
+            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.close()
+            return None
+        if self.label_added_tag_one.text() == "":  # Checks if no tags have been added, then adds first one
+            self.label_added_tag_one.setText(self.tag_combo_box.currentText().upper())
+            self.label_added_tag_one.show()
+            sheet["C" + str(current_question + 1)] = self.tag_combo_box.currentText().upper()
+        elif self.tag_combo_box.currentText().upper() == current_tag_one\
+                or self.tag_combo_box.currentText().upper() == current_tag_two:  # Checks for duplicate tags
+            self.generic_error("Repeated Tag", "You can't add the same tag twice to the same question.")
+        elif self.label_added_tag_one.text() != "" and self.label_added_tag_two.text() == "":  # Checks for second tag
+            self.label_added_tag_two.setText(self.tag_combo_box.currentText().upper())
+            self.label_added_tag_two.show()
+            if sheet["C" + str(current_question + 1)].value is not None:
+                db_tag_one = sheet["C" + str(current_question + 1)].value
+                sheet["C" + str(current_question + 1)] = db_tag_one + "//" + self.tag_combo_box.currentText().upper()
+            self.add_tag_to_question_button.setText("Remove tags >")
         wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
         wb.close()
 
