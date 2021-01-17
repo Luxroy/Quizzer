@@ -649,6 +649,7 @@ class UiQuestionnaireMainWindow(object):
         self.gridLayout.addWidget(self.mod_add_question_button, 18, 0, 1, 4)
         self.mod_add_question_button.setText("(-) Modify Question!")
         self.mod_add_question_button.hide()
+        self.questionnaire_left_frame.setFixedWidth(180)
         # Placeholder texts
         self.question_line_edit.setPlaceholderText("Your question goes here:")
         self.answer_text_edit.setPlaceholderText("Your answer goes here:")
@@ -688,7 +689,7 @@ class UiQuestionnaireMainWindow(object):
         self.remove_tag_button.clicked.connect(self.remove_tags)
         self.add_tag_to_question_button.clicked.connect(self.add_tag_to_question)
         self.modify_question_button.clicked.connect(self.modify_question)
-        self.mod_add_question_button.clicked.connect(self.mod_add_question)
+        self.mod_add_question_button.clicked.connect(self.add_mod_question)
 
     def textify(self, questionnaireMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -969,12 +970,12 @@ class UiQuestionnaireMainWindow(object):
                 # DONE: Don't add question, but modify the one selected
                 self.add_question_button.hide()
                 self.mod_add_question_button.show()
-                self.label_question.setText(f"Question {str(question_list.index(question) + 1)}:")
+                self.label_question.setText(f"Modifying Question {str(question_list.index(question) + 1)}:")
 
             wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
 
-    def mod_add_question(self):
+    def add_mod_question(self):
         if self.question_line_edit.text() == "":
             self.generic_error("Empty question", "Please add text to your question.")
         elif self.answer_text_edit.toPlainText() == "":
@@ -1034,7 +1035,7 @@ class UiQuestionnaireMainWindow(object):
         else:
             wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
-            current_question = int(self.label_question.text().replace(":", "")[9:])
+            current_question = int(self.label_question.text().replace(":", "")[19:])
             sheet["A" + str(current_question + 1)] = self.question_line_edit.text().capitalize()  # QUESTION
             sheet["D" + str(current_question + 1)] = self.answer_text_edit.toPlainText().capitalize()  # ANSWER
 
@@ -1079,26 +1080,27 @@ class UiQuestionnaireMainWindow(object):
             self.add_question_button.show()
 
     def delete_question(self):
+        # Check if there is no active questionnaire
         if not self.main_list_widget.selectedItems():
             self.generic_error("No quiz selected",
                                "Please select a quiz which contains the question you want to delete")
+        # If there is an active questionnaire, show current questions, then delete selected question
         else:
             if self.label_project_title_questionnaire != "Questionnaire Title":
                 wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
                 sheet = wb.active
                 current_question = int(self.label_question.text().replace(":", "")[9:])
                 question_list = []
-                for cell in sheet["A"]:
+                for cell in sheet["A"]:  # Adds all question values to a list
                     if cell.value != "QUESTIONS" and cell.value is not None:
                         question_list.append(cell.value)
-                shell = QtWidgets.QWidget()
-                choice, ok = QtWidgets.QInputDialog.getItem(shell,
+                choice, ok = QtWidgets.QInputDialog.getItem(self.window,
                                                             "Delete Question",
                                                             "Select a question from the list to delete",
                                                             question_list, 0, False)
                 if choice and ok:
-                    pass
-                wb.save(f"Quiz_{self.label_project_title_questionnaire}.xlsx")
+                    print(sheet["A" + str(question_list.index(choice) + 2)].value)  # It adds 2 to compensate
+                wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
                 wb.close()
 
     def add_tags(self):
