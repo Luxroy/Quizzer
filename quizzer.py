@@ -420,11 +420,11 @@ class UiQuestionnaireMainWindow(object):
         self.label_new_questionnaire.setWordWrap(True)
         self.label_new_questionnaire.setObjectName("label_new_questionnaire")
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.label_new_questionnaire)
-        self.new_question_button = QtWidgets.QPushButton(self.questionnaire_left_frame)
-        self.new_question_button.setMinimumSize(QtCore.QSize(0, 50))
-        self.new_question_button.setStyleSheet("background-color: rgb(85, 255, 255);")
-        self.new_question_button.setObjectName("new_question_button")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.new_question_button)
+        self.preview_questionnaire_button = QtWidgets.QPushButton(self.questionnaire_left_frame)
+        self.preview_questionnaire_button.setMinimumSize(QtCore.QSize(0, 50))
+        self.preview_questionnaire_button.setStyleSheet("background-color: rgb(85, 255, 255);")
+        self.preview_questionnaire_button.setObjectName("new_question_button")
+        self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.preview_questionnaire_button)
         self.label_new_question = QtWidgets.QLabel(self.questionnaire_left_frame)
         self.label_new_question.setWordWrap(True)
         self.label_new_question.setObjectName("label_new_question")
@@ -625,7 +625,7 @@ class UiQuestionnaireMainWindow(object):
 
         # Class Variables
         self.window = QtWidgets.QWidget()
-        self.window.setGeometry(800, 300, 500, 500)
+        self.window.setGeometry(900, 400, 500, 500)
 
         # UI Additions
         self.menuOpciones = QtWidgets.QMenu(self.questionnaire_menu_bar)
@@ -681,8 +681,7 @@ class UiQuestionnaireMainWindow(object):
         self.new_questionnaire_button.clicked.connect(self.new_questionnaire)
         self.modify_questionnaire_title_button.clicked.connect(self.modify_title)
         self.delete_questionnaire_button.clicked.connect(self.delete_questionnaire)
-        self.new_question_button.clicked.connect(self.new_question)
-        self.add_question_button.clicked.connect(self.new_question)
+        self.add_question_button.clicked.connect(self.add_question)
         self.select_current_questionnaire.clicked.connect(self.select_current)
         self.delete_question_button.clicked.connect(self.delete_question)
         self.add_tag_button.clicked.connect(self.add_tags)
@@ -690,15 +689,17 @@ class UiQuestionnaireMainWindow(object):
         self.add_tag_to_question_button.clicked.connect(self.add_tag_to_question)
         self.modify_question_button.clicked.connect(self.modify_question)
         self.mod_add_question_button.clicked.connect(self.add_mod_question)
+        self.cancel_button.clicked.connect(self.questionnaire_cancel)
+        self.preview_questionnaire_button.clicked.connect(self.preview_questionnaire)
 
     def textify(self, questionnaireMainWindow):
         _translate = QtCore.QCoreApplication.translate
         questionnaireMainWindow.setWindowTitle(_translate("QuestionnaireMainWindow", "Questionnaire"))
-        self.new_questionnaire_button.setText(_translate("QuestionnaireMainWindow", "(+)"))
+        self.new_questionnaire_button.setText(_translate("QuestionnaireMainWindow", "(🞤)"))
         self.label_new_questionnaire.setText(_translate("QuestionnaireMainWindow", "New questionnaire \n"
                                                                                    "(This goes first!)"))
-        self.new_question_button.setText(_translate("QuestionnaireMainWindow", "(+++)"))
-        self.label_new_question.setText(_translate("QuestionnaireMainWindow", "New Question"))
+        self.preview_questionnaire_button.setText(_translate("QuestionnaireMainWindow", "(🔎)"))
+        self.label_new_question.setText(_translate("QuestionnaireMainWindow", "Preview questionnaire"))
         self.label_project_nav.setText(
             _translate("QuestionnaireMainWindow", "Click here to navigate through projects:"))
         self.select_current_questionnaire.setText(_translate("QuestionnaireMainWindow", "Select current questionnaire"))
@@ -847,18 +848,22 @@ class UiQuestionnaireMainWindow(object):
         else:
             self.generic_information("", "Questionnaire was not deleted.")
 
-    def new_question(self):
+    def add_question(self):
+        # Checks if there are no questionnaire currently created, presentes option to create one now
         if self.main_list_widget.count() == 0:  # Counts the items in ItemListWidget
             ask = QtWidgets.QMessageBox.question(self.window, "No quiz created", "It appears you have not created "
                                                                                  "a quiz yet to assign this question\n"
                                                                                  "\nWould you like to create one now?")
             if ask == QMessageBox.Yes:
                 self.new_questionnaire()
+        # Checks for incomplete user input, manages errors
         else:
             if self.question_line_edit.text() == "":
                 self.generic_error("Empty question", "Please add text to your question.")
             elif self.answer_text_edit.toPlainText() == "":
                 self.generic_error("Empty answer", "Please add a correct answer to your question.")
+
+            # HANDLES OPTIONAL MULTIPLE WRONG ANSWERS MODE
             elif self.possible_wrong_answers_check_box.isChecked():
                 if self.wrong_answer_text_edit_1.toPlainText() == "":
                     self.generic_error("Empty answer", "Please add another wrong answer to your question.\n\n"
@@ -869,6 +874,9 @@ class UiQuestionnaireMainWindow(object):
                 elif self.wrong_answer_text_edit_3.toPlainText() == "":
                     self.generic_error("Empty answer", "Please add another wrong answer to your question.\n\n"
                                                        "Otherwise, uncheck possible wrong answer mode.")
+                # END OF EMPTY FIELD HANDLING
+
+                # START OF CORRECT INPUT HANDLING
                 else:  # If all fields are correctly filled, adds question data to file
                     wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
                     sheet = wb.active
@@ -903,14 +911,15 @@ class UiQuestionnaireMainWindow(object):
                                              f"Answer: {self.answer_text_edit.toPlainText().capitalize()}\n\n"
                                              f"Tags: {self.label_added_tag_one.text()} / {self.label_added_tag_two.text()}"
                                              f"\n\nDifficulty: {self.difficulty_dict.get(difficulty)}")
-                    self.question_line_edit.clear()
-                    self.answer_text_edit.clear()
-                    self.wrong_answer_text_edit_1.clear()
-                    self.wrong_answer_text_edit_2.clear()
-                    self.wrong_answer_text_edit_3.clear()
-                    self.label_added_tag_one.setText("")
-                    self.label_added_tag_two.setText("")
-                    self.add_tag_to_question_button.setText("Add tag >")
+                    self.questionnaire_cancel()
+
+                    items = []
+                    for i in range(self.main_list_widget.count()):
+                        items.append(self.main_list_widget.item(i).text())
+                    current_questionnaire = items.index(self.label_project_title_questionnaire.text())
+                    self.set_active_questionnaire(current_questionnaire)
+
+            # HANDLES REGULAR ANSWER MODE
             else:
                 wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
                 sheet = wb.active
@@ -939,14 +948,23 @@ class UiQuestionnaireMainWindow(object):
                                          f"Answer: {self.answer_text_edit.toPlainText().capitalize()}\n\n"
                                          f"Tags: {self.label_added_tag_one.text()} / {self.label_added_tag_two.text()}"
                                          f"\n\nDifficulty: {self.difficulty_dict.get(difficulty)}")
-                self.question_line_edit.clear()
-                self.answer_text_edit.clear()
-                self.wrong_answer_text_edit_1.clear()
-                self.wrong_answer_text_edit_2.clear()
-                self.wrong_answer_text_edit_3.clear()
-                self.label_added_tag_one.setText("")
-                self.label_added_tag_two.setText("")
-                self.add_tag_to_question_button.setText("Add tag >")
+                self.questionnaire_cancel()
+
+                items = []
+                for i in range(self.main_list_widget.count()):
+                    items.append(self.main_list_widget.item(i).text())
+                current_questionnaire = items.index(self.label_project_title_questionnaire.text())
+                self.set_active_questionnaire(current_questionnaire)
+
+    def questionnaire_cancel(self):
+        self.question_line_edit.clear()
+        self.answer_text_edit.clear()
+        self.wrong_answer_text_edit_1.clear()
+        self.wrong_answer_text_edit_2.clear()
+        self.wrong_answer_text_edit_3.clear()
+        self.label_added_tag_one.setText("")
+        self.label_added_tag_two.setText("")
+        self.add_tag_to_question_button.setText("Add tag >")
 
     def modify_question(self):
         # DONE: Add modify functionality
@@ -1073,9 +1091,9 @@ class UiQuestionnaireMainWindow(object):
             items = []
             for i in range(self.main_list_widget.count()):
                 items.append(self.main_list_widget.item(i).text())
-
             current_questionnaire = items.index(self.label_project_title_questionnaire.text())
             self.set_active_questionnaire(current_questionnaire)
+
             self.mod_add_question_button.hide()
             self.add_question_button.show()
 
@@ -1099,7 +1117,8 @@ class UiQuestionnaireMainWindow(object):
                                                             "Select a question from the list to delete",
                                                             question_list, 0, False)
                 if choice and ok:
-                    print(sheet["A" + str(question_list.index(choice) + 2)].value)  # It adds 2 to compensate
+                    sheet["A" + str(question_list.index(choice) + 2)] = choice  # It adds 2 to compensate
+
                 wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
                 wb.close()
 
@@ -1165,6 +1184,12 @@ class UiQuestionnaireMainWindow(object):
         wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
         wb.close()
 
+    def preview_questionnaire(self):
+        # TODO: Function to preview in a table widget the items in a questionnaire
+        custom_table = CustomTableWidget()
+        custom_table.__init__()
+        custom_table.preview_table.setItem(1, 1, QtWidgets.QTableWidgetItem("Item"))
+
     @staticmethod
     def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
         parent = QtWidgets.QMessageBox()
@@ -1187,6 +1212,52 @@ class UiQuestionnaireMainWindow(object):
     def switch_to_quiz():
         questionnaireMainWindow.close()
         QuizMainWindow.show()
+
+
+class CustomTableWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        CustomTableWidget.setWindowTitle(self, "Preview Table")
+        self.setGeometry(800, 400, 700, 300)
+        self.frame = QtWidgets.QFrame(self)
+        self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.frame.setObjectName("frame")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.frame)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.preview_table = QtWidgets.QTableWidget()
+        self.preview_table.setMinimumSize(680, 280)
+        self.preview_table.setAlternatingRowColors(True)
+        item = QtWidgets.QTableWidgetItem()
+        item2 = QtWidgets.QTableWidgetItem()
+        item3 = QtWidgets.QTableWidgetItem()
+        item4 = QtWidgets.QTableWidgetItem()
+        self.preview_table.setColumnCount(4)
+        self.preview_table.setRowCount(5)
+        self.preview_table.horizontalHeader().setStretchLastSection(True)
+        self.preview_table.setHorizontalHeaderItem(0, item)
+        self.preview_table.setHorizontalHeaderItem(1, item2)
+        self.preview_table.setHorizontalHeaderItem(2, item3)
+        self.preview_table.setHorizontalHeaderItem(3, item4)
+
+        item = self.preview_table.horizontalHeaderItem(0)
+        item.setText("Question")
+        item = self.preview_table.horizontalHeaderItem(1)
+        item.setText("Tags")
+        item = self.preview_table.horizontalHeaderItem(2)
+        item.setText("Answer")
+        item = self.preview_table.horizontalHeaderItem(3)
+        item.setText("Multiple answers")
+
+        self.preview_table.setColumnWidth(0, 230)
+        self.preview_table.setColumnWidth(1, 100)
+        self.preview_table.setColumnWidth(2, 230)
+        self.preview_table.setColumnWidth(3, 50)
+
+        self.preview_table.setItem(1, 1, QtWidgets.QTableWidgetItem("Item"))  # TODO: Get this to work on outside class
+
+        self.verticalLayout.addWidget(self.preview_table)
+        self.show()
 
 
 class QuizzerMainWindow(object):
@@ -1329,4 +1400,7 @@ if __name__ == "__main__":
     questionnaireMainWindow = QtWidgets.QMainWindow()
     questionnaire_ui = UiQuestionnaireMainWindow()
     questionnaire_ui.__init__()
+    custom_table = CustomTableWidget()
+    custom_table.hide()
+
     sys.exit(app.exec_())
