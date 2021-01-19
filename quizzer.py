@@ -1185,10 +1185,46 @@ class UiQuestionnaireMainWindow(object):
         wb.close()
 
     def preview_questionnaire(self):
-        # TODO: Function to preview in a table widget the items in a questionnaire
+        # INSTANTIATION
         custom_table = CustomTableWidget()
-        custom_table.__init__()
-        custom_table.preview_table.setItem(1, 1, QtWidgets.QTableWidgetItem("Item"))
+        # FETCHING DATA
+        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        sheet = wb.active
+        custom_table.preview_table.setRowCount(int(self.label_number_of_questions.text()[16:]))
+        # -- Fetch Questions, then add them to table
+        row = 0
+        for cell in sheet["A"]:
+            if cell.value != "QUESTIONS" and cell.value is not None:
+                custom_table.preview_table.setItem(row, 0, QtWidgets.QTableWidgetItem(cell.value))
+                row += 1
+                if len(cell.value) > 30:
+                    custom_table.preview_table.setRowHeight(row - 1, 60)  # TODO: Check if this works in first question
+        # -- Fetch Tags, then add them to table
+        row = 0
+        for cell in sheet["C"]:
+            if cell.value != "QUESTION TAGS":
+                custom_table.preview_table.setItem(row, 1, QtWidgets.QTableWidgetItem(cell.value))
+                row += 1
+        # -- Fetch Answers, then add them to table
+        row = 0
+        for cell in sheet["D"]:
+            if cell.value != "ANSWER" and cell.value is not None:
+                custom_table.preview_table.setItem(row, 2, QtWidgets.QTableWidgetItem(cell.value))
+                row += 1
+                if len(cell.value) > 30:
+                    custom_table.preview_table.setRowHeight(row - 1, 60)
+        # -- Fetch Optional Multiple Answer mode, then add them to table
+        row = 0
+        for cell in sheet["E"]:
+            if cell.value != "WRONG ANSWER 1" and cell.value is not None:
+                custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("✅"))
+                row += 1
+            elif cell.value is None:
+                custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("❌"))
+                row += 1
+        wb.close()
+        custom_table.__init__()  # Why does this work, needs research, might be unstable
+
 
     @staticmethod
     def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
@@ -1253,9 +1289,7 @@ class CustomTableWidget(QtWidgets.QWidget):
         self.preview_table.setColumnWidth(1, 100)
         self.preview_table.setColumnWidth(2, 230)
         self.preview_table.setColumnWidth(3, 50)
-
-        self.preview_table.setItem(1, 1, QtWidgets.QTableWidgetItem("Item"))  # TODO: Get this to work on outside class
-
+        self.preview_table.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
         self.verticalLayout.addWidget(self.preview_table)
         self.show()
 
