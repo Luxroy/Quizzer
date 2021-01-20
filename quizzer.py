@@ -623,7 +623,7 @@ class UiQuestionnaireMainWindow(object):
         self.possible_wrong_answers_check_box.toggled['bool'].connect(self.wrong_answer_text_edit_3.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(questionnaireMainWindow)
 
-        # Class Variables
+        # CHILD WINDOW VARIABLE
         self.window = QtWidgets.QWidget()
         self.window.setGeometry(900, 400, 500, 500)
 
@@ -650,20 +650,21 @@ class UiQuestionnaireMainWindow(object):
         self.mod_add_question_button.setText("(-) Modify Question!")
         self.mod_add_question_button.hide()
         self.questionnaire_left_frame.setFixedWidth(180)
-        # Placeholder texts
+        self.go_to_quizbutton.setEnabled(False)
+        # -- Placeholder texts
         self.question_line_edit.setPlaceholderText("Your question goes here:")
         self.answer_text_edit.setPlaceholderText("Your answer goes here:")
         self.wrong_answer_text_edit_1.setPlaceholderText("Your wrong answer goes here: (Trickery)")
         self.wrong_answer_text_edit_2.setPlaceholderText("Your wrong answer goes here: (Banditry)")
         self.wrong_answer_text_edit_3.setPlaceholderText("Your wrong answer goes here: (Deception)")
-        # Tooltips
+        # -- Tooltips
         self.new_questionnaire_button.setToolTip("You can add new Questionnaires here!")
         self.select_current_questionnaire.setToolTip("Select a Questionnaire from above to set it as active")
 
-        # Added tab order
+        # TAB ORDER
         MainWindow.setTabOrder(self.question_line_edit, self.answer_text_edit)
 
-        # Additional init
+        # ADDITIONAL INIT
         self.path = os.getcwd()
         for file in os.listdir():  # Adds current saved quizzes to main list widget
             if file.startswith("Quiz"):
@@ -676,7 +677,7 @@ class UiQuestionnaireMainWindow(object):
             self.add_tag_to_question_button.setText("Remove tags >")
         self.difficulty_dict = {1: "Easy", 3: "Medium", 5: "Hard", 7: "Expert"}
 
-        # Connections
+        # CONNECTIONS
         self.go_to_quizbutton.clicked.connect(self.switch_to_quiz)
         self.new_questionnaire_button.clicked.connect(self.new_questionnaire)
         self.modify_questionnaire_title_button.clicked.connect(self.modify_title)
@@ -699,12 +700,12 @@ class UiQuestionnaireMainWindow(object):
         self.label_new_questionnaire.setText(_translate("QuestionnaireMainWindow", "New questionnaire \n"
                                                                                    "(This goes first!)"))
         self.preview_questionnaire_button.setText(_translate("QuestionnaireMainWindow", "(🔎)"))
-        self.label_new_question.setText(_translate("QuestionnaireMainWindow", "Preview questionnaire"))
+        self.label_new_question.setText(_translate("QuestionnaireMainWindow", "Preview current questionnaire"))
         self.label_project_nav.setText(
             _translate("QuestionnaireMainWindow", "Click here to navigate through projects:"))
         self.select_current_questionnaire.setText(_translate("QuestionnaireMainWindow", "Select current questionnaire"))
-        self.go_to_quizbutton.setText(_translate("QuestionnaireMainWindow", "Lets take a\n"
-                                                                            " Quiz!"))
+        self.go_to_quizbutton.setText(_translate("QuestionnaireMainWindow", "Lets take a"
+                                                                            " Quiz! \n(Needs 4 questions at least)"))
         self.medium_check_box.setText(_translate("QuestionnaireMainWindow", "Medium (+3 points)"))
         self.label_number_of_questions.setText(_translate("QuestionnaireMainWindow", "# of questions:"))
         self.remove_tag_button.setText(_translate("QuestionnaireMainWindow", "(-)"))
@@ -726,22 +727,33 @@ class UiQuestionnaireMainWindow(object):
         self.hard_check_box.setText(_translate("QuestionnaireMainWindow", "Hard (+5 points)"))
 
     def set_active_questionnaire(self, index=0):
+        # FETCHING DATA
         wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         sheet = wb.active
+        # -- Fetching questions column in excel file, adding it to a list
         question_list = []
         for cell in sheet["A"]:
             if cell.value != "QUESTIONS" and cell.value is not None:
                 question_list.append(cell.value)
-        self.label_number_of_questions.setText(f"""# of Questions: {len(question_list)}""")  # QUESTIONS
+        # UPDATE UI
+        # Updating labels and status bar to reflect fetched data
+        self.label_number_of_questions.setText(f"""# of Questions: {len(question_list)}""")
         self.label_question.setText(f"""Question {len(question_list) + 1}:""")
         self.questionnaire_status_bar.showMessage(f"Active questionnaire: "
                                                   f"{self.main_list_widget.item(index).text()}")
         self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
+        # -- Clearing combo box from possible other questionnaires
         self.tag_combo_box.clear()
+        # FETCHING DATA AGAIN
+        # -- Fetching tags from excel file, adding them to a list
         for cell in sheet["B"]:  # TAGS
             if cell.value != "TAGS" and cell.value is not None:
                 self.tag_combo_box.addItem(cell.value)
-        current_question = int(self.label_question.text().replace(":", "")[9:])  # QUESTION TAGS
+        # -- Fetching current question, allowing quiz interface change or not
+        current_question = int(self.label_question.text().replace(":", "")[9:])
+        if current_question >= 4:
+            self.go_to_quizbutton.setEnabled(True)
+        # -- Set question tag info into UI
         if sheet["C" + str(current_question + 1)].value is not None:
             tags = sheet["C" + str(current_question + 1)].value.split("//")
             self.label_added_tag_one.setText(tags[0])
@@ -752,7 +764,8 @@ class UiQuestionnaireMainWindow(object):
         else:
             self.label_added_tag_one.setText("")
             self.label_added_tag_two.setText("")
-        if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY  # TODO: Handle deleted questions
+        # -- Fetching difficulty values
+        if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY  # DONE: Handle deleted questions
             diff_average = 0
             count = 0
             for cell in sheet["H"]:
@@ -761,10 +774,21 @@ class UiQuestionnaireMainWindow(object):
                     count += 1
             average = round(diff_average / count, 2)
             self.label_average_difficulty.setText(f"Average Difficulty: {str(average)}")
+        # -- If there are no difficulty values, then there are no questions, therefore add default UI message
         else:
             self.label_average_difficulty.setText("Average Difficulty: Pending...")
+        # -- Save and close questionnaire excel file
         wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         wb.close()
+
+    def get_active_questionnaire_index(self):
+        # MANAGE DATA
+        # -- Get all items in main list widget, add them to a list and the find the index of the one marked as active
+        items = []
+        for i in range(self.main_list_widget.count()):
+            items.append(self.main_list_widget.item(i).text())
+        current_questionnaire = items.index(self.label_project_title_questionnaire.text())
+        return current_questionnaire
 
     def new_questionnaire(self):
         quiz_title, ok = QtWidgets.QInputDialog.getText(self.window, "Create a Quiz", "Select a title for your "
@@ -968,7 +992,7 @@ class UiQuestionnaireMainWindow(object):
 
     def modify_question(self):
         # DONE: Add modify functionality
-        if self.label_project_title_questionnaire != "Questionnaire Title":
+        if self.label_project_title_questionnaire.text() != "Questionnaire Title":
             wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             question_list = []
@@ -1098,29 +1122,46 @@ class UiQuestionnaireMainWindow(object):
             self.add_question_button.show()
 
     def delete_question(self):
-        # Check if there is no active questionnaire
-        if not self.main_list_widget.selectedItems():
-            self.generic_error("No quiz selected",
-                               "Please select a quiz which contains the question you want to delete")
-        # If there is an active questionnaire, show current questions, then delete selected question
-        else:
-            if self.label_project_title_questionnaire != "Questionnaire Title":
-                wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
-                sheet = wb.active
-                current_question = int(self.label_question.text().replace(":", "")[9:])
-                question_list = []
-                for cell in sheet["A"]:  # Adds all question values to a list
-                    if cell.value != "QUESTIONS" and cell.value is not None:
-                        question_list.append(cell.value)
-                choice, ok = QtWidgets.QInputDialog.getItem(self.window,
-                                                            "Delete Question",
-                                                            "Select a question from the list to delete",
-                                                            question_list, 0, False)
-                if choice and ok:
-                    sheet["A" + str(question_list.index(choice) + 2)] = choice  # It adds 2 to compensate
+        # FETCHING DATA
+        # -- If there is a currently selected questionnaire, other that default
+        if self.label_project_title_questionnaire.text() != "Questionnaire Title":
+            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            sheet = wb.active
+            current_question = int(self.label_question.text().replace(":", "")[9:])
+            # -- Fetch questions data from excel file
+            question_list = []
+            for cell in sheet["A"]:  # Adds all question values to a list
+                if cell.value != "QUESTIONS" and cell.value is not None:
+                    question_list.append(cell.value)
+            # -- Present user a dialog to choose question to delete
+            choice, ok = QtWidgets.QInputDialog.getItem(self.window,
+                                                        "Delete Question",
+                                                        "Select a question from the list to delete",
+                                                        question_list, 0, False)
+            # MODIFYING DATA
+            # -- If user chooses a question from dialog, delete that question and raise success message
+            if choice and ok:
+                tag = sheet["B" + str(question_list.index(choice) + 2)].value
+                # -- If there is no tag value in deleted row, just delete the row
+                if tag is None or tag == "":
+                    sheet.delete_rows((question_list.index(choice) + 2), 1)
+                # -- If there is a tag value in to-be-deleted row, first move tag value to another unused row
+                else:
+                    # -- For every cell in B column, check for an empty space, then relocate tag value
+                    for cell in sheet["B"]:
+                        if cell.value != "TAGS" and cell.value is None:  # TODO: Handle less questions than tags
+                            sheet[cell.coordinate] = tag
+                            break
+                    sheet.delete_rows((question_list.index(choice) + 2), 1)
+                # -- Raise success message
+                self.generic_information("Question Deleted", f"The following question: \n\n{choice}\n\n"
+                                                             f"And all of its items were deleted.")
+            # -- Save and close modified data
+            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.close()
 
-                wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
-                wb.close()
+            # RESET ACTIVE QUESTIONNAIRE
+            self.set_active_questionnaire(self.get_active_questionnaire_index())
 
     def add_tags(self):
         tag, ok = QtWidgets.QInputDialog.getText(self.window,
@@ -1185,46 +1226,46 @@ class UiQuestionnaireMainWindow(object):
         wb.close()
 
     def preview_questionnaire(self):
-        # INSTANTIATION
-        custom_table = CustomTableWidget()
-        # FETCHING DATA
-        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
-        sheet = wb.active
-        custom_table.preview_table.setRowCount(int(self.label_number_of_questions.text()[16:]))
-        # -- Fetch Questions, then add them to table
-        row = 0
-        for cell in sheet["A"]:
-            if cell.value != "QUESTIONS" and cell.value is not None:
-                custom_table.preview_table.setItem(row, 0, QtWidgets.QTableWidgetItem(cell.value))
-                row += 1
-                if len(cell.value) > 30:
-                    custom_table.preview_table.setRowHeight(row - 1, 60)  # TODO: Check if this works in first question
-        # -- Fetch Tags, then add them to table
-        row = 0
-        for cell in sheet["C"]:
-            if cell.value != "QUESTION TAGS":
-                custom_table.preview_table.setItem(row, 1, QtWidgets.QTableWidgetItem(cell.value))
-                row += 1
-        # -- Fetch Answers, then add them to table
-        row = 0
-        for cell in sheet["D"]:
-            if cell.value != "ANSWER" and cell.value is not None:
-                custom_table.preview_table.setItem(row, 2, QtWidgets.QTableWidgetItem(cell.value))
-                row += 1
-                if len(cell.value) > 30:
-                    custom_table.preview_table.setRowHeight(row - 1, 60)
-        # -- Fetch Optional Multiple Answer mode, then add them to table
-        row = 0
-        for cell in sheet["E"]:
-            if cell.value != "WRONG ANSWER 1" and cell.value is not None:
-                custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("✅"))
-                row += 1
-            elif cell.value is None:
-                custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("❌"))
-                row += 1
-        wb.close()
-        custom_table.__init__()  # Why does this work, needs research, might be unstable
-
+        if self.label_project_title_questionnaire.text() != "Questionnaire Title":
+            # INSTANTIATION
+            custom_table = CustomTableWidget()
+            # FETCHING DATA
+            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            sheet = wb.active
+            custom_table.preview_table.setRowCount(int(self.label_number_of_questions.text()[16:]))
+            # -- Fetch Questions, then add them to table
+            row = 0
+            for cell in sheet["A"]:
+                if cell.value != "QUESTIONS" and cell.value is not None:
+                    custom_table.preview_table.setItem(row, 0, QtWidgets.QTableWidgetItem(cell.value))
+                    row += 1
+                    if len(cell.value) > 30:
+                        custom_table.preview_table.setRowHeight(row - 1, 60)  # TODO: Check if this works in first question
+            # -- Fetch Tags, then add them to table
+            row = 0
+            for cell in sheet["C"]:
+                if cell.value != "QUESTION TAGS":
+                    custom_table.preview_table.setItem(row, 1, QtWidgets.QTableWidgetItem(cell.value))
+                    row += 1
+            # -- Fetch Answers, then add them to table
+            row = 0
+            for cell in sheet["D"]:
+                if cell.value != "ANSWER" and cell.value is not None:
+                    custom_table.preview_table.setItem(row, 2, QtWidgets.QTableWidgetItem(cell.value))
+                    row += 1
+                    if len(cell.value) > 30:
+                        custom_table.preview_table.setRowHeight(row - 1, 60)
+            # -- Fetch Optional Multiple Answer mode, then add them to table
+            row = 0
+            for cell in sheet["E"]:
+                if cell.value != "WRONG ANSWER 1" and cell.value is not None:
+                    custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("✅"))
+                    row += 1
+                elif cell.value is None:
+                    custom_table.preview_table.setItem(row, 3, QtWidgets.QTableWidgetItem("❌"))
+                    row += 1
+            wb.close()
+            custom_table.__init__()  # Why does this work, needs research, might be unstable
 
     @staticmethod
     def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
@@ -1283,12 +1324,12 @@ class CustomTableWidget(QtWidgets.QWidget):
         item = self.preview_table.horizontalHeaderItem(2)
         item.setText("Answer")
         item = self.preview_table.horizontalHeaderItem(3)
-        item.setText("Multiple answers")
+        item.setText("Wrong answers")
 
-        self.preview_table.setColumnWidth(0, 230)
+        self.preview_table.setColumnWidth(0, 220)
         self.preview_table.setColumnWidth(1, 100)
-        self.preview_table.setColumnWidth(2, 230)
-        self.preview_table.setColumnWidth(3, 50)
+        self.preview_table.setColumnWidth(2, 220)
+        self.preview_table.setColumnWidth(3, 70)
         self.preview_table.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
         self.verticalLayout.addWidget(self.preview_table)
         self.show()
