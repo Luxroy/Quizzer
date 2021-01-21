@@ -335,8 +335,23 @@ class UiQuizMainWindow(object):
         self.textify(QuizMainWindow)
         QtCore.QMetaObject.connectSlotsByName(QuizMainWindow)
 
-        # Connections
+        # UI ADDITIONS
+        self.quiz_left_frame.setFixedWidth(180)
+
+        # CHILD WINDOW VARIABLE
+        self.window = QtWidgets.QWidget()
+        self.window.setGeometry(900, 400, 500, 500)
+
+        # ADDITIONAL INIT
+        for file in os.listdir():
+            if file.startswith("Quiz"):
+                self.main_list_widget.addItem(file[5:-5])
+        if self.main_list_widget.count() == 0:
+            self.quiz_right_frame.setEnabled(False)
+
+        # CONNECTIONS
         self.go_to_questionnaire_button.clicked.connect(self.switch_to_questionnaire)
+        self.new_quiz_button.clicked.connect(self.new_quiz)
 
     def textify(self, QuizMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -375,14 +390,35 @@ class UiQuizMainWindow(object):
         self.restart_quiz_button.setText(_translate("QuizMainWindow", "(<--)"))
         self.label_4.setText(_translate("QuizMainWindow", "Restart current Quiz"))
         self.label_project_nav.setText(_translate("QuizMainWindow", "Click here to navigate through projects:"))
-        self.change_quiz_button.setText(_translate("QuizMainWindow", "Change current quiz"))
+        self.change_quiz_button.setText(_translate("QuizMainWindow", "Select current quiz"))
         self.go_to_questionnaire_button.setText(_translate("QuizMainWindow", "Lets prepare more\n"
                                                                              " questionnaires!"))
+
+    def new_quiz(self):
+        if self.label_project_title_questionnaire.text() != "Questionnaire Title":
+            # INSTANTIATION
+            quiz_pop_up = CustomTableWidget()
+
+            print(quiz_pop_up)
 
     @staticmethod
     def switch_to_questionnaire():
         QuizMainWindow.hide()
         questionnaireMainWindow.show()
+
+
+class CustomQuizPopUp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        CustomQuizPopUp.setWindowTitle(self, "Quiz Options")
+
+        self.setGeometry(800, 400, 700, 300)
+        self.frame = QtWidgets.QFrame(self)
+        self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.frame.setObjectName("frame")
+
+        self.show()
 
 
 class UiQuestionnaireMainWindow(object):
@@ -665,8 +701,10 @@ class UiQuestionnaireMainWindow(object):
         MainWindow.setTabOrder(self.question_line_edit, self.answer_text_edit)
 
         # ADDITIONAL INIT
+        # -- Sets regular path to project files
         self.path = os.getcwd()
-        for file in os.listdir():  # Adds current saved quizzes to main list widget
+        # -- Add current questionnaires to main list widget
+        for file in os.listdir():
             if file.startswith("Quiz"):
                 self.main_list_widget.addItem(file[5:-5])
         if self.main_list_widget.count() == 0:
@@ -1501,5 +1539,7 @@ if __name__ == "__main__":
     questionnaire_ui.__init__()
     custom_table = CustomTableWidget()
     custom_table.hide()
+    quiz_pop_up = CustomQuizPopUp()
+    quiz_pop_up.hide()
 
     sys.exit(app.exec_())
