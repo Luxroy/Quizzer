@@ -873,7 +873,7 @@ class UiQuestionnaireMainWindow(object):
             self.generic_information("", "Questionnaire was not deleted.")
 
     def add_question(self):
-        # Checks if there are no questionnaire currently created, presentes option to create one now
+        # Checks if there are no questionnaire currently created, presents option to create one now
         if self.main_list_widget.count() == 0:  # Counts the items in ItemListWidget
             ask = QtWidgets.QMessageBox.question(self.window, "No quiz created", "It appears you have not created "
                                                                                  "a quiz yet to assign this question\n"
@@ -991,7 +991,7 @@ class UiQuestionnaireMainWindow(object):
         self.add_tag_to_question_button.setText("Add tag >")
 
     def modify_question(self):
-        # DONE: Add modify functionality
+        # FETCHING DATA
         if self.label_project_title_questionnaire.text() != "Questionnaire Title":
             wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
@@ -1004,11 +1004,18 @@ class UiQuestionnaireMainWindow(object):
                                                           question_list, 0, False)
             if question and ok:
                 # Depending on selection, bring the question parameters into the UI for modification
-                # Set Question
+                # -- Set Question
                 self.question_line_edit.setText(sheet["A" + str(question_list.index(question) + 2)].value)
-                # Set Answer
+                # -- Set Answer
                 answer = sheet["D" + str(question_list.index(question) + 2)].value
                 self.answer_text_edit.setText(answer)
+                # -- Set Possible Wrong answers, if there are any
+                if sheet["D" + str(question_list.index(question) + 2)].value is not None:
+                    self.wrong_answer_text_edit_1.setText(sheet["E" + str(question_list.index(question) + 2)].value)
+                    self.wrong_answer_text_edit_2.setText(sheet["F" + str(question_list.index(question) + 2)].value)
+                    self.wrong_answer_text_edit_3.setText(sheet["G" + str(question_list.index(question) + 2)].value)
+                    self.possible_wrong_answers_check_box.setChecked(True)
+
                 # DONE: Don't add question, but modify the one selected
                 self.add_question_button.hide()
                 self.mod_add_question_button.show()
@@ -1196,10 +1203,17 @@ class UiQuestionnaireMainWindow(object):
     def add_tag_to_question(self):
         wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
         sheet = wb.active
+        # UI CHECK - Works using labels as reference
         current_tag_one = self.label_added_tag_one.text()
         current_tag_two = self.label_added_tag_two.text()
+        tag_list = [self.tag_combo_box.itemText(i) for i in range(self.tag_combo_box.count())]
+        # -- If user is modifying question, consider alternate question label, otherwise consider default
         # Very delicate, if program breaks, high sus
-        current_question = int(self.label_question.text().replace(":", "")[9:])
+        if self.label_question.text().startswith("Mod"):
+            current_question = int(self.label_question.text().replace(":", "")[19:])
+        else:
+            current_question = int(self.label_question.text().replace(":", "")[9:])
+        # -- If tags from other questionnaire are present, erase them to allow new ones
         if current_tag_one != "" and current_tag_two != "":  # Reverse functionality, to remove tags
             self.label_added_tag_one.setText("")
             self.label_added_tag_two.setText("")
@@ -1208,16 +1222,25 @@ class UiQuestionnaireMainWindow(object):
             wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
             return None
-        if self.label_added_tag_one.text() == "":  # Checks if no tags have been added, then adds first one
+        # -- If no tags have been added, add first one NOTE: First tag will always be filled first
+        if self.label_added_tag_one.text() == "":
             self.label_added_tag_one.setText(self.tag_combo_box.currentText().upper())
             self.label_added_tag_one.show()
             sheet["C" + str(current_question + 1)] = self.tag_combo_box.currentText().upper()
+            # -- If tag index is the last in the list, set current item to first, otherwise, change to next
+            if tag_list.index(self.tag_combo_box.currentText()) < (len(tag_list) - 1):
+                self.tag_combo_box.setCurrentIndex(tag_list.index(self.tag_combo_box.currentText()) + 1)
+            else:
+                self.tag_combo_box.setCurrentIndex(0)
+        # -- If selected tag is already added, do not allow adding duplicate tag and raise message to user
         elif self.tag_combo_box.currentText().upper() == current_tag_one \
-                or self.tag_combo_box.currentText().upper() == current_tag_two:  # Checks for duplicate tags
+                or self.tag_combo_box.currentText().upper() == current_tag_two:
             self.generic_error("Repeated Tag", "You can't add the same tag twice to the same question.")
-        elif self.label_added_tag_one.text() != "" and self.label_added_tag_two.text() == "":  # Checks for second tag
+        # If a first tag has been added, but not a second, add the second one
+        elif self.label_added_tag_one.text() != "" and self.label_added_tag_two.text() == "":
             self.label_added_tag_two.setText(self.tag_combo_box.currentText().upper())
             self.label_added_tag_two.show()
+            # WRITING DATA TO EXCEL FILE
             if sheet["C" + str(current_question + 1)].value is not None:
                 db_tag_one = sheet["C" + str(current_question + 1)].value
                 sheet["C" + str(current_question + 1)] = db_tag_one + "//" + self.tag_combo_box.currentText().upper()
@@ -1240,7 +1263,8 @@ class UiQuestionnaireMainWindow(object):
                     custom_table.preview_table.setItem(row, 0, QtWidgets.QTableWidgetItem(cell.value))
                     row += 1
                     if len(cell.value) > 30:
-                        custom_table.preview_table.setRowHeight(row - 1, 60)  # TODO: Check if this works in first question
+                        custom_table.preview_table.setRowHeight(row - 1,
+                                                                60)  # TODO: Check if this works in first question
             # -- Fetch Tags, then add them to table
             row = 0
             for cell in sheet["C"]:
