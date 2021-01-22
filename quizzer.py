@@ -2,8 +2,9 @@ import os
 import openpyxl
 import xlsxwriter
 import clickable_label
+from PyQt5.QtCore import QTimer
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QInputDialog, QFileDialog, QMessageBox, QListWidget
+from PyQt5.QtWidgets import QInputDialog, QFileDialog, QMessageBox
 
 
 class UiQuizMainWindow(object):
@@ -11,7 +12,7 @@ class UiQuizMainWindow(object):
         super().__init__()
         QuizMainWindow.setObjectName("QuizMainWindow")
         QuizMainWindow.resize(688, 690)
-        QuizMainWindow.setGeometry(800, 300, 500, 500)
+        QuizMainWindow.setGeometry(150, 400, 500, 500)
         self.quiz_main_widget = QtWidgets.QWidget(QuizMainWindow)
         self.quiz_main_widget.setObjectName("quiz_main_widget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.quiz_main_widget)
@@ -342,10 +343,6 @@ class UiQuizMainWindow(object):
         self.window = QtWidgets.QWidget()
         self.window.setGeometry(900, 400, 500, 500)
 
-        # ADDITIONAL INIT
-        for file in os.listdir():
-            if file.startswith("Quiz"):
-                self.main_list_widget.addItem(file[5:-5])
         if self.main_list_widget.count() == 0:
             self.quiz_right_frame.setEnabled(False)
 
@@ -399,109 +396,84 @@ class UiQuizMainWindow(object):
             # INSTANTIATION
             quiz_pop_up = CustomQuizPopUp()
 
-            # -- Again, I do not know how or why does this work
-            quiz_pop_up.__init__()
-
     @staticmethod
     def switch_to_questionnaire():
         QuizMainWindow.hide()
         questionnaireMainWindow.show()
 
 
-class CustomQuizPopUp(QtWidgets.QWidget):
+class CustomQuizPopUp(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
         CustomQuizPopUp.setWindowTitle(self, "Quiz Options")
 
-        self.setGeometry(900, 400, 700, 300)
+        self.setGeometry(250, 500, 700, 300)
         self.resize(324, 309)
         self.gridLayout = QtWidgets.QGridLayout(self)
         self.frame = QtWidgets.QFrame(self)
         self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.frame.setObjectName("frame")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.frame)
-        self.gridLayout_2.setObjectName("gridLayout_2")
         self.question_difficulty_hSlider = QtWidgets.QSlider(self.frame)
         self.question_difficulty_hSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.question_difficulty_hSlider.setObjectName("question_difficulty_hSlider")
         self.gridLayout_2.addWidget(self.question_difficulty_hSlider, 7, 1, 1, 1)
         self.exclude_tag_button = QtWidgets.QPushButton(self.frame)
         self.exclude_tag_button.setEnabled(False)
-        self.exclude_tag_button.setObjectName("exclude_tag_button")
         self.gridLayout_2.addWidget(self.exclude_tag_button, 13, 0, 1, 1)
         self.label_percentage_max_questions = QtWidgets.QLabel(self.frame)
-        self.label_percentage_max_questions.setObjectName("label_percentage_max_questions")
         self.gridLayout_2.addWidget(self.label_percentage_max_questions, 4, 0, 1, 1)
         self.label_quiz_summary = QtWidgets.QLabel(self.frame)
-        self.label_quiz_summary.setObjectName("label_quiz_summary")
         self.gridLayout_2.addWidget(self.label_quiz_summary, 0, 0, 1, 2)
         self.pending_checkBox = QtWidgets.QCheckBox(self.frame)
-        self.pending_checkBox.setObjectName("pending_checkBox")
         self.gridLayout_2.addWidget(self.pending_checkBox, 12, 1, 1, 1)
         self.question_difficulty_comboBox = QtWidgets.QComboBox(self.frame)
-        self.question_difficulty_comboBox.setObjectName("question_difficulty_comboBox")
         self.gridLayout_2.addWidget(self.question_difficulty_comboBox, 6, 1, 1, 1)
         self.allow_wrong_checkBox = QtWidgets.QCheckBox(self.frame)
         self.allow_wrong_checkBox.setChecked(True)
-        self.allow_wrong_checkBox.setObjectName("allow_wrong_checkBox")
         self.gridLayout_2.addWidget(self.allow_wrong_checkBox, 10, 0, 1, 1)
         self.okcancel_qpu = QtWidgets.QDialogButtonBox(self.frame)
         self.okcancel_qpu.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
-        self.okcancel_qpu.setObjectName("okcancel_qpu")
         self.gridLayout_2.addWidget(self.okcancel_qpu, 14, 1, 1, 1)
         self.max_questions_spinBox = QtWidgets.QSpinBox(self.frame)
-        self.max_questions_spinBox.setObjectName("max_questions_spinBox")
         self.gridLayout_2.addWidget(self.max_questions_spinBox, 3, 1, 1, 1)
         self.label_question_difficulty = QtWidgets.QLabel(self.frame)
-        self.label_question_difficulty.setObjectName("label_question_difficulty")
         self.gridLayout_2.addWidget(self.label_question_difficulty, 6, 0, 1, 1)
         self.label_max_questions_qpu = QtWidgets.QLabel(self.frame)
-        self.label_max_questions_qpu.setObjectName("label_max_questions_qpu")
         self.gridLayout_2.addWidget(self.label_max_questions_qpu, 3, 0, 1, 1)
         self.challenge_mode_checkBox = QtWidgets.QCheckBox(self.frame)
-        self.challenge_mode_checkBox.setObjectName("challenge_mode_checkBox")
         self.gridLayout_2.addWidget(self.challenge_mode_checkBox, 10, 1, 1, 1)
         self.exclude_tag_comboBox = QtWidgets.QComboBox(self.frame)
         self.exclude_tag_comboBox.setEnabled(False)
-        self.exclude_tag_comboBox.setObjectName("exclude_tag_comboBox")
         self.gridLayout_2.addWidget(self.exclude_tag_comboBox, 13, 1, 1, 1)
         self.exclude_tags_checkBox = QtWidgets.QCheckBox(self.frame)
-        self.exclude_tags_checkBox.setObjectName("exclude_tags_checkBox")
         self.gridLayout_2.addWidget(self.exclude_tags_checkBox, 12, 0, 1, 1)
         self.top_line = QtWidgets.QFrame(self.frame)
         self.top_line.setFrameShape(QtWidgets.QFrame.HLine)
         self.top_line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.top_line.setObjectName("top_line")
         self.gridLayout_2.addWidget(self.top_line, 2, 0, 1, 2)
         self.label_options = QtWidgets.QLabel(self.frame)
-        self.label_options.setObjectName("label_options")
         self.gridLayout_2.addWidget(self.label_options, 9, 0, 1, 2)
         self.bottom_line = QtWidgets.QFrame(self.frame)
         self.bottom_line.setFrameShape(QtWidgets.QFrame.HLine)
         self.bottom_line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.bottom_line.setObjectName("bottom_line")
         self.gridLayout_2.addWidget(self.bottom_line, 8, 0, 1, 2)
         self.max_questions_hSlider = QtWidgets.QSlider(self.frame)
         self.max_questions_hSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.max_questions_hSlider.setObjectName("max_questions_hSlider")
         self.gridLayout_2.addWidget(self.max_questions_hSlider, 4, 1, 1, 1)
         self.mid_line = QtWidgets.QFrame(self.frame)
         self.mid_line.setFrameShape(QtWidgets.QFrame.HLine)
         self.mid_line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.mid_line.setObjectName("mid_line")
         self.gridLayout_2.addWidget(self.mid_line, 5, 0, 1, 2)
-        self.label_detail_1 = QtWidgets.QLabel(self.frame)
-        self.label_detail_1.setObjectName("label_detail_1")
-        self.gridLayout_2.addWidget(self.label_detail_1, 1, 0, 1, 1)
-        self.label_detail_2 = QtWidgets.QLabel(self.frame)
-        self.label_detail_2.setObjectName("label_detail_2")
-        self.gridLayout_2.addWidget(self.label_detail_2, 1, 1, 1, 1)
+        self.add_questionnaire_to_quiz_button = QtWidgets.QPushButton(self.frame)
+        self.gridLayout_2.addWidget(self.add_questionnaire_to_quiz_button, 1, 0, 1, 1)
+        self.quiz_comboBox = QtWidgets.QComboBox(self.frame)
+        self.gridLayout_2.addWidget(self.quiz_comboBox, 1, 1, 1, 1)
         self.gridLayout.addWidget(self.frame, 0, 0, 1, 1)
 
         self.exclude_tag_button.setText("Exclude")
         self.label_percentage_max_questions.setText("%")
-        self.label_quiz_summary.setText("Quiz Summary")
+        self.label_quiz_summary.setText("Quiz Summary\n\n"
+                                        "You can build your quizzes by adding one ore more questionnaires.")
         self.pending_checkBox.setText("Pending")
         self.allow_wrong_checkBox.setText("Allow wrong answers")
         self.label_question_difficulty.setText("Question Difficulty")
@@ -513,10 +485,80 @@ class CustomQuizPopUp(QtWidgets.QWidget):
         self.challenge_mode_checkBox.setText("Challenge Mode")
         self.exclude_tags_checkBox.setText("Exclude tags")
         self.label_options.setText("Options")
-        self.label_detail_1.setText("Detail 1")
-        self.label_detail_2.setText("Detail 2")
+        self.add_questionnaire_to_quiz_button.setText("Add Questionnaire")
 
-        self.show()
+        # ADDITIONAL INIT
+        # -- Add questionnaires to a combo box to let user add multiple ones to a quiz
+        for file in os.listdir():
+            if file.startswith("Quiz"):
+                self.quiz_comboBox.addItem(file[5:-5])
+        # -- Block dialog functionality until user adds questionnaires to quiz
+        self.max_questions_spinBox.setEnabled(False)
+        self.max_questions_hSlider.setEnabled(False)
+        self.question_difficulty_comboBox.setEnabled(False)
+        self.question_difficulty_hSlider.setEnabled(False)
+
+        self.difficulty_dict = {1: "EASY", 2: "MEDIUM",
+                                3: "HARD", 4: "EXPERT"}
+
+        # CONNECTIONS
+        self.exclude_tags_checkBox.clicked.connect(self.check_exclude_tags)
+        self.add_questionnaire_to_quiz_button.clicked.connect(self.add_questionnaire_to_quiz)
+        self.max_questions_hSlider.valueChanged.connect(self.max_question_slider_changed)
+        self.max_questions_spinBox.valueChanged.connect(self.max_question_spinbox_changed)
+        self.question_difficulty_hSlider.valueChanged.connect(self.question_difficulty_slider_changed)
+        self.question_difficulty_comboBox.currentTextChanged.connect(self.question_difficulty_combobox_changed)
+
+        self.exec_()
+
+    def check_exclude_tags(self):
+        if self.exclude_tags_checkBox.isChecked():
+            self.exclude_tag_button.setEnabled(True)
+            self.exclude_tag_comboBox.setEnabled(True)
+        else:
+            self.exclude_tag_button.setEnabled(False)
+            self.exclude_tag_comboBox.setEnabled(False)
+
+    def add_questionnaire_to_quiz(self):
+        wb = openpyxl.load_workbook(f"Quiz_{self.quiz_comboBox.currentText()}.xlsx")
+        sheet = wb.active
+        question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]  # EUREKA MOTHER______
+        difficulty_list = [self.difficulty_dict.get(cell.value) for cell in sheet["H"] if cell.value != "DIFFICULTY"]
+        difficulty_list = list(set(difficulty_list))
+        self.max_questions_spinBox.setEnabled(True)
+        self.max_questions_hSlider.setEnabled(True)
+        self.max_questions_spinBox.setMaximum(len(question_list))
+        self.max_questions_hSlider.setMaximum(len(question_list))
+        self.question_difficulty_comboBox.setEnabled(True)
+        self.question_difficulty_hSlider.setEnabled(True)
+        for diff in difficulty_list:
+            self.question_difficulty_comboBox.addItem(diff)
+        self.question_difficulty_hSlider.setMaximum(len(difficulty_list))
+
+        print(question_list)
+        print(difficulty_list)
+        print(len(difficulty_list))
+
+        wb.close()
+
+    def max_question_slider_changed(self):
+        self.max_questions_spinBox.setValue(self.max_questions_hSlider.value())
+
+    def max_question_spinbox_changed(self):
+        self.max_questions_hSlider.setValue(self.max_questions_spinBox.value())
+
+    def question_difficulty_slider_changed(self):
+        self.question_difficulty_comboBox.setCurrentIndex(self.question_difficulty_hSlider.value())
+
+    def question_difficulty_combobox_changed(self):
+        if self.question_difficulty_comboBox.currentText() == "EASY":
+            self.question_difficulty_hSlider.setValue(0)
+        elif self.question_difficulty_comboBox.currentText() == "MEDIUM":
+            self.question_difficulty_hSlider.setValue(1)
+        elif self.question_difficulty_comboBox.currentText() == "HARD":
+            self.question_difficulty_hSlider.setValue(2)
+        elif self.question_difficulty_comboBox.currentText() == "EXPERT":
+            self.question_difficulty_hSlider.setValue(3)
 
 
 class UiQuestionnaireMainWindow(object):
@@ -794,7 +836,6 @@ class UiQuestionnaireMainWindow(object):
         # -- Tooltips
         self.new_questionnaire_button.setToolTip("You can add new Questionnaires here!")
         self.select_current_questionnaire.setToolTip("Select a Questionnaire from above to set it as active")
-
 
         # TAB ORDER
         MainWindow.setTabOrder(self.question_line_edit, self.answer_text_edit)
@@ -1502,7 +1543,7 @@ class QuizzerMainWindow(object):
     def __init__(self):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(483, 492)
-        MainWindow.setGeometry(800, 300, 500, 500)
+        MainWindow.setGeometry(150, 400, 500, 500)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
@@ -1640,7 +1681,5 @@ if __name__ == "__main__":
     questionnaire_ui.__init__()
     custom_table = CustomTableWidget()
     custom_table.hide()
-    quiz_pop_up = CustomQuizPopUp()
-    quiz_pop_up.hide()
 
     sys.exit(app.exec_())
