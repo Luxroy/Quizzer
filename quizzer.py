@@ -498,8 +498,8 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.question_difficulty_comboBox.setEnabled(False)
         self.question_difficulty_hSlider.setEnabled(False)
 
-        self.difficulty_dict = {1: "EASY", 2: "MEDIUM",
-                                3: "HARD", 4: "EXPERT"}
+        self.difficulty_dict = {1: "EASY", 3: "MEDIUM",
+                                5: "HARD", 7: "EXPERT"}
 
         # CONNECTIONS
         self.exclude_tags_checkBox.clicked.connect(self.check_exclude_tags)
@@ -508,6 +508,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.max_questions_spinBox.valueChanged.connect(self.max_question_spinbox_changed)
         self.question_difficulty_hSlider.valueChanged.connect(self.question_difficulty_slider_changed)
         self.question_difficulty_comboBox.currentTextChanged.connect(self.question_difficulty_combobox_changed)
+        self.exclude_tag_button.clicked.connect(self.exclude_this_tag)
 
         self.exec_()
 
@@ -520,26 +521,35 @@ class CustomQuizPopUp(QtWidgets.QDialog):
             self.exclude_tag_comboBox.setEnabled(False)
 
     def add_questionnaire_to_quiz(self):
-        wb = openpyxl.load_workbook(f"Quiz_{self.quiz_comboBox.currentText()}.xlsx")
-        sheet = wb.active
-        question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]  # EUREKA MOTHER______
-        difficulty_list = [self.difficulty_dict.get(cell.value) for cell in sheet["H"] if cell.value != "DIFFICULTY"]
-        difficulty_list = list(set(difficulty_list))
-        self.max_questions_spinBox.setEnabled(True)
-        self.max_questions_hSlider.setEnabled(True)
-        self.max_questions_spinBox.setMaximum(len(question_list))
-        self.max_questions_hSlider.setMaximum(len(question_list))
-        self.question_difficulty_comboBox.setEnabled(True)
-        self.question_difficulty_hSlider.setEnabled(True)
-        for diff in difficulty_list:
-            self.question_difficulty_comboBox.addItem(diff)
-        self.question_difficulty_hSlider.setMaximum(len(difficulty_list))
+        if self.quiz_comboBox.currentText() != "":
+            wb = openpyxl.load_workbook(f"Quiz_{self.quiz_comboBox.currentText()}.xlsx")
+            sheet = wb.active
+            question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]  # EUREKA MOTHER______
+            tag_list = [cell.value for cell in sheet["B"] if cell.value != "TAGS" and cell.value is not None]
+            difficulty_list = [self.difficulty_dict.get(cell.value) for cell in sheet["H"] if cell.value != "DIFFICULTY"]
+            difficulty_list = list(set(difficulty_list))
 
-        print(question_list)
-        print(difficulty_list)
-        print(len(difficulty_list))
+            self.max_questions_spinBox.setEnabled(True)
+            self.max_questions_hSlider.setEnabled(True)
+            self.max_questions_spinBox.setMaximum(len(question_list))
+            self.max_questions_hSlider.setMaximum(len(question_list))
+            for tag in tag_list:
+                self.exclude_tag_comboBox.addItem(tag)
 
-        wb.close()
+            for diff in sorted(difficulty_list):
+                self.question_difficulty_comboBox.addItem(diff)
+            self.question_difficulty_comboBox.setEnabled(True)
+            self.question_difficulty_hSlider.setEnabled(True)
+            self.question_difficulty_hSlider.setMaximum(len(difficulty_list) - 1)
+
+            questionnaire_list = [self.quiz_comboBox.itemText(i) for i in range(len(self.quiz_comboBox))]
+            self.quiz_comboBox.removeItem(questionnaire_list.index(self.quiz_comboBox.currentText()))
+
+            print(question_list)
+            print(difficulty_list)
+            print(questionnaire_list)
+
+            wb.close()
 
     def max_question_slider_changed(self):
         self.max_questions_spinBox.setValue(self.max_questions_hSlider.value())
@@ -551,14 +561,13 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.question_difficulty_comboBox.setCurrentIndex(self.question_difficulty_hSlider.value())
 
     def question_difficulty_combobox_changed(self):
-        if self.question_difficulty_comboBox.currentText() == "EASY":
-            self.question_difficulty_hSlider.setValue(0)
-        elif self.question_difficulty_comboBox.currentText() == "MEDIUM":
-            self.question_difficulty_hSlider.setValue(1)
-        elif self.question_difficulty_comboBox.currentText() == "HARD":
-            self.question_difficulty_hSlider.setValue(2)
-        elif self.question_difficulty_comboBox.currentText() == "EXPERT":
-            self.question_difficulty_hSlider.setValue(3)
+        pass
+
+    def exclude_this_tag(self):
+        # UPDATE UI
+        excluded_tag = self.exclude_tag_comboBox.currentText()
+        tag_list = [self.exclude_tag_comboBox.itemText(i) for i in range(self.exclude_tag_comboBox.count())]
+        self.exclude_tag_comboBox.removeItem(tag_list.index(excluded_tag))
 
 
 class UiQuestionnaireMainWindow(object):
