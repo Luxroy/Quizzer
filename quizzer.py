@@ -424,8 +424,8 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.gridLayout_2.addWidget(self.label_percentage_max_questions, 4, 0, 1, 1)
         self.label_quiz_summary = QtWidgets.QLabel(self.frame)
         self.gridLayout_2.addWidget(self.label_quiz_summary, 0, 0, 1, 2)
-        self.pending_checkBox = QtWidgets.QCheckBox(self.frame)
-        self.gridLayout_2.addWidget(self.pending_checkBox, 12, 1, 1, 1)
+        self.label_excluded_tags = QtWidgets.QLabel(self.frame)
+        self.gridLayout_2.addWidget(self.label_excluded_tags, 12, 1, 1, 1)
         self.question_difficulty_comboBox = QtWidgets.QComboBox(self.frame)
         self.gridLayout_2.addWidget(self.question_difficulty_comboBox, 6, 1, 1, 1)
         self.allow_wrong_checkBox = QtWidgets.QCheckBox(self.frame)
@@ -474,9 +474,9 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.label_percentage_max_questions.setText("%")
         self.label_quiz_summary.setText("Quiz Summary\n\n"
                                         "You can build your quizzes by adding one ore more questionnaires.")
-        self.pending_checkBox.setText("Pending")
+        self.label_excluded_tags.setText("")
         self.allow_wrong_checkBox.setText("Allow wrong answers")
-        self.label_question_difficulty.setText("Question Difficulty")
+        self.label_question_difficulty.setText("Question Difficulty\n(This difficulty or higher)")
         self.label_max_questions_qpu.setText("Max questions in quiz")
         self.challenge_mode_checkBox.setToolTip("<html><head/><body><p align=\"justify\">User gets "
                                                 "only certain lives, which are consumed by "
@@ -490,8 +490,8 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         # ADDITIONAL INIT
         # -- Add questionnaires to a combo box to let user add multiple ones to a quiz
         for file in os.listdir():
-            if file.startswith("Quiz"):
-                self.quiz_comboBox.addItem(file[5:-5])
+            if file.startswith("Questionnaire"):
+                self.quiz_comboBox.addItem(file[14:-5])
         # -- Block dialog functionality until user adds questionnaires to quiz
         self.max_questions_spinBox.setEnabled(False)
         self.max_questions_hSlider.setEnabled(False)
@@ -509,6 +509,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         self.question_difficulty_hSlider.valueChanged.connect(self.question_difficulty_slider_changed)
         self.question_difficulty_comboBox.currentTextChanged.connect(self.question_difficulty_combobox_changed)
         self.exclude_tag_button.clicked.connect(self.exclude_this_tag)
+        self.okcancel_qpu.accepted.connect(self.create_new_quiz)
 
         self.exec_()
 
@@ -522,18 +523,24 @@ class CustomQuizPopUp(QtWidgets.QDialog):
 
     def add_questionnaire_to_quiz(self):
         if self.quiz_comboBox.currentText() != "":
-            wb = openpyxl.load_workbook(f"Quiz_{self.quiz_comboBox.currentText()}.xlsx")
+            # FETCHING DATA
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.quiz_comboBox.currentText()}.xlsx")
             sheet = wb.active
+            # -- List comprehensions fetch data from excel file
             question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]  # EUREKA MOTHER______
             tag_list = [cell.value for cell in sheet["B"] if cell.value != "TAGS" and cell.value is not None]
-            difficulty_list = [self.difficulty_dict.get(cell.value) for cell in sheet["H"] if cell.value != "DIFFICULTY"]
+            difficulty_list = [self.difficulty_dict.get(cell.value) for cell in sheet["H"]
+                               if cell.value != "DIFFICULTY"]
             difficulty_list = list(set(difficulty_list))
 
+            # UPDATING UI
+            # -- Enable elements once they can be populated from fetched data
             self.max_questions_spinBox.setEnabled(True)
             self.max_questions_hSlider.setEnabled(True)
             self.max_questions_spinBox.setMaximum(len(question_list))
             self.max_questions_hSlider.setMaximum(len(question_list))
             for tag in tag_list:
+                # TODO: Manage doubled tags from previous questionnaires, might cause trouble
                 self.exclude_tag_comboBox.addItem(tag)
 
             for diff in sorted(difficulty_list):
@@ -542,17 +549,54 @@ class CustomQuizPopUp(QtWidgets.QDialog):
             self.question_difficulty_hSlider.setEnabled(True)
             self.question_difficulty_hSlider.setMaximum(len(difficulty_list) - 1)
 
+            # -- Remove input questionnaire to avoid duplicates
             questionnaire_list = [self.quiz_comboBox.itemText(i) for i in range(len(self.quiz_comboBox))]
+            self.label_quiz_summary.setText(f"{self.label_quiz_summary.text()} \n/{self.quiz_comboBox.currentText()}")
             self.quiz_comboBox.removeItem(questionnaire_list.index(self.quiz_comboBox.currentText()))
 
+            # TESTING
             print(question_list)
             print(difficulty_list)
             print(questionnaire_list)
 
             wb.close()
 
+    def create_new_quiz(self):
+        # CREATING QUIZ
+        # -- Ask for quiz title
+        title, ok = QtWidgets.QInputDialog.getText(self.window(), "Title", "Select a Title for the new Quiz:",
+                                                   QtWidgets.QLineEdit.Normal)
+        if title and ok:
+            # -- Get un-excluded tags by user
+            tag_list = self.label_excluded_tags.text().split("/")
+            tag_list.pop(0)
+            # -- Open questionnaire and extract filtered questions, add them to another excel file
+            questionnaires = (self.label_quiz_summary.text().split("/"))
+            questionnaires.pop(0)
+            # TODO: Fix adding several questionnaires, they are overwritten now
+            for questionnaire in questionnaires:
+                questionnaire = questionnaire.replace(" \n", "")
+                wb = openpyxl.load_workbook(f"Questionnaire_{questionnaire}.xlsx")
+                sheet = wb.active
+                for cell in sheet["C"]:
+                    for tag in tag_list:
+                        if tag in cell.value:
+                            print(f"Tag {tag} was in {cell.value}")
+                            sheet.delete_rows(int(cell.coordinate[1:]), 1)
+                wb.save(f"Quiz_{title.upper()}.xlsx")
+                wb.close()
+
     def max_question_slider_changed(self):
         self.max_questions_spinBox.setValue(self.max_questions_hSlider.value())
+        if self.max_questions_spinBox.value() != 0:
+            percentage = round((self.max_questions_hSlider.value() / self.max_questions_hSlider.maximum()) * 100, 2)
+            self.label_percentage_max_questions.setText(f"({self.max_questions_hSlider.value()} / "
+                                                        f"{self.max_questions_hSlider.maximum()}) "
+                                                        f"{percentage}%")
+        else:
+            self.label_percentage_max_questions.setText(f"({self.max_questions_hSlider.value()} / "
+                                                        f"{self.max_questions_hSlider.maximum()}) "
+                                                        f"{0}%")
 
     def max_question_spinbox_changed(self):
         self.max_questions_hSlider.setValue(self.max_questions_spinBox.value())
@@ -568,6 +612,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         excluded_tag = self.exclude_tag_comboBox.currentText()
         tag_list = [self.exclude_tag_comboBox.itemText(i) for i in range(self.exclude_tag_comboBox.count())]
         self.exclude_tag_comboBox.removeItem(tag_list.index(excluded_tag))
+        self.label_excluded_tags.setText(f"{self.label_excluded_tags.text()}/{excluded_tag}")
 
 
 class UiQuestionnaireMainWindow(object):
@@ -854,8 +899,8 @@ class UiQuestionnaireMainWindow(object):
         self.path = os.getcwd()
         # -- Add current questionnaires to main list widget
         for file in os.listdir():
-            if file.startswith("Quiz"):
-                self.main_list_widget.addItem(file[5:-5])
+            if file.startswith("Questionnaire"):
+                self.main_list_widget.addItem(file[14:-5])
         if self.main_list_widget.count() == 0:
             self.questionnaire_right_frame.setEnabled(False)
         else:
@@ -915,7 +960,7 @@ class UiQuestionnaireMainWindow(object):
 
     def set_active_questionnaire(self, index=0):
         # FETCHING DATA
-        wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        wb = openpyxl.load_workbook(f"Questionnaire_{self.main_list_widget.item(index).text()}.xlsx")
         sheet = wb.active
         # -- Fetching questions column in excel file, adding it to a list
         question_list = []
@@ -965,7 +1010,7 @@ class UiQuestionnaireMainWindow(object):
         else:
             self.label_average_difficulty.setText("Average Difficulty: Pending...")
         # -- Save and close questionnaire excel file
-        wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        wb.save(f"Questionnaire_{self.main_list_widget.item(index).text()}.xlsx")
         wb.close()
 
     def get_active_questionnaire_index(self):
@@ -982,9 +1027,9 @@ class UiQuestionnaireMainWindow(object):
                                                                                       "questionnaire: ",
                                                         QtWidgets.QLineEdit.Normal)
         if ok and quiz_title:
-            wb = xlsxwriter.Workbook(f"Quiz_{quiz_title.upper()}.xlsx")
+            wb = xlsxwriter.Workbook(f"Questionnaire_{quiz_title.upper()}.xlsx")
             wb.close()
-            open_workbook = openpyxl.load_workbook(f"Quiz_{quiz_title.upper()}.xlsx")
+            open_workbook = openpyxl.load_workbook(f"Questionnaire_{quiz_title.upper()}.xlsx")
             sheet = open_workbook.active
             # Formatting
             sheet["A1"] = "QUESTIONS"
@@ -1007,7 +1052,7 @@ class UiQuestionnaireMainWindow(object):
             # Filter and freeze
             sheet.auto_filter.ref = "A1:H1"
             sheet.freeze_panes = "A2"
-            open_workbook.save(f"Quiz_{quiz_title.upper()}.xlsx")
+            open_workbook.save(f"Questionnaire_{quiz_title.upper()}.xlsx")
             open_workbook.close()
             questionnaire_ui.__init__()
 
@@ -1031,8 +1076,8 @@ class UiQuestionnaireMainWindow(object):
                                                            'Select new questionnaire title',
                                                            QtWidgets.QLineEdit.Normal)
             if new_title and ok:
-                old_title = f"Quiz_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
-                new_title = f"Quiz_{new_title.upper()}.xlsx"
+                old_title = f"Questionnaire_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
+                new_title = f"Questionnaire_{new_title.upper()}.xlsx"
                 if old_title.lower() == new_title.lower():
                     self.generic_error("Identical Titles",
                                        "The two selected titles were identical, operation was cancelled.")
@@ -1050,7 +1095,7 @@ class UiQuestionnaireMainWindow(object):
                                                       "Are you sure you want to permanently delete this questionnaire:")
         if confirmation == QMessageBox.Yes:
             try:
-                deleted_quiz = f"Quiz_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
+                deleted_quiz = f"Questionnaire_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
                 os.remove(deleted_quiz)
                 questionnaire_ui.__init__()
             except IndexError:
@@ -1089,7 +1134,7 @@ class UiQuestionnaireMainWindow(object):
 
                 # START OF CORRECT INPUT HANDLING
                 else:  # If all fields are correctly filled, adds question data to file
-                    wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                    wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                     sheet = wb.active
                     current_question = int(self.label_question.text().replace(":", "")[9:])
                     sheet["A" + str(current_question + 1)] = self.question_line_edit.text().capitalize()  # QUESTION
@@ -1114,7 +1159,7 @@ class UiQuestionnaireMainWindow(object):
                         difficulty = 7
                         sheet["H" + str(current_question + 1)] = difficulty
 
-                    wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                    wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                     wb.close()
                     self.generic_information("Successfully added",
                                              f"Question {current_question} was added correctly.\n\n"
@@ -1132,7 +1177,7 @@ class UiQuestionnaireMainWindow(object):
 
             # HANDLES REGULAR ANSWER MODE
             else:
-                wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                 sheet = wb.active
                 current_question = int(self.label_question.text().replace(":", "")[9:])
                 sheet["A" + str(current_question + 1)] = self.question_line_edit.text().capitalize()  # QUESTION
@@ -1151,7 +1196,7 @@ class UiQuestionnaireMainWindow(object):
                     difficulty = 7
                     sheet["H" + str(current_question + 1)] = difficulty
 
-                wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                 wb.close()
                 self.generic_information("Successfully added",
                                          f"Question {current_question} was added correctly.\n\n"
@@ -1180,7 +1225,7 @@ class UiQuestionnaireMainWindow(object):
     def modify_question(self):
         # FETCHING DATA
         if self.label_project_title_questionnaire.text() != "Questionnaire Title":
-            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             question_list = []
             for cell in sheet["A"]:
@@ -1208,7 +1253,7 @@ class UiQuestionnaireMainWindow(object):
                 self.mod_add_question_button.show()
                 self.label_question.setText(f"Modifying Question {str(question_list.index(question) + 1)}:")
 
-            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
 
     def add_mod_question(self):
@@ -1227,7 +1272,7 @@ class UiQuestionnaireMainWindow(object):
                 self.generic_error("Empty answer", "Please add another wrong answer to your question.\n\n"
                                                    "Otherwise, uncheck possible wrong answer mode.")
             else:  # If all fields are correctly filled, adds question data to file
-                wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                 sheet = wb.active
                 current_question = int(self.label_question.text().replace(":", "")[9:])
                 sheet["A" + str(current_question + 1)] = self.question_line_edit.text().capitalize()  # QUESTION
@@ -1252,7 +1297,7 @@ class UiQuestionnaireMainWindow(object):
                     difficulty = 7
                     sheet["H" + str(current_question + 1)] = difficulty
 
-                wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+                wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
                 wb.close()
                 self.generic_information("Successfully added",
                                          f"Question {current_question} was added correctly.\n\n"
@@ -1269,7 +1314,7 @@ class UiQuestionnaireMainWindow(object):
                 self.label_added_tag_two.setText("")
                 self.add_tag_to_question_button.setText("Add tag >")
         else:
-            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             current_question = int(self.label_question.text().replace(":", "")[19:])
             sheet["A" + str(current_question + 1)] = self.question_line_edit.text().capitalize()  # QUESTION
@@ -1288,7 +1333,7 @@ class UiQuestionnaireMainWindow(object):
                 difficulty = 7
                 sheet["H" + str(current_question + 1)] = difficulty
 
-            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
             self.generic_information("Successfully added",
                                      f"Question {current_question} was added correctly.\n\n"
@@ -1319,7 +1364,7 @@ class UiQuestionnaireMainWindow(object):
         # FETCHING DATA
         # -- If there is a currently selected questionnaire, other that default
         if self.label_project_title_questionnaire.text() != "Questionnaire Title":
-            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             current_question = int(self.label_question.text().replace(":", "")[9:])
             # -- Fetch questions data from excel file
@@ -1351,7 +1396,7 @@ class UiQuestionnaireMainWindow(object):
                 self.generic_information("Question Deleted", f"The following question: \n\n{choice}\n\n"
                                                              f"And all of its items were deleted.")
             # -- Save and close modified data
-            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
 
             # RESET ACTIVE QUESTIONNAIRE
@@ -1361,15 +1406,15 @@ class UiQuestionnaireMainWindow(object):
         tag, ok = QtWidgets.QInputDialog.getText(self.window,
                                                  "Add tag", "Enter tag name", QtWidgets.QLineEdit.Normal)
         if tag and ok:
-            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             sheet["B" + str(sheet.max_row + 1)] = tag.upper()  # High sus on this, might break tags in future
             self.tag_combo_box.addItem(tag.upper())
-            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
 
     def remove_tags(self):
-        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
         sheet = wb.active
         tag_list = []
         for cell in sheet["B"]:
@@ -1384,11 +1429,11 @@ class UiQuestionnaireMainWindow(object):
                 if cell.value == tag:
                     sheet[cell.coordinate] = ""
                     self.tag_combo_box.removeItem(index)
-        wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
         wb.close()
 
     def add_tag_to_question(self):
-        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
         sheet = wb.active
         # UI CHECK - Works using labels as reference
         current_tag_one = self.label_added_tag_one.text()
@@ -1406,7 +1451,7 @@ class UiQuestionnaireMainWindow(object):
             self.label_added_tag_two.setText("")
             self.add_tag_to_question_button.setText("Add tag >")
             sheet["C" + str(current_question + 1)].value = None
-            wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             wb.close()
             return None
         # -- If no tags have been added, add first one NOTE: First tag will always be filled first
@@ -1432,7 +1477,7 @@ class UiQuestionnaireMainWindow(object):
                 db_tag_one = sheet["C" + str(current_question + 1)].value
                 sheet["C" + str(current_question + 1)] = db_tag_one + "//" + self.tag_combo_box.currentText().upper()
             self.add_tag_to_question_button.setText("Remove tags >")
-        wb.save(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        wb.save(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
         wb.close()
 
     def preview_questionnaire(self):
@@ -1440,7 +1485,7 @@ class UiQuestionnaireMainWindow(object):
             # INSTANTIATION
             custom_table = CustomTableWidget()
             # FETCHING DATA
-            wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+            wb = openpyxl.load_workbook(f"Questionnaire_{self.label_project_title_questionnaire.text()}.xlsx")
             sheet = wb.active
             custom_table.preview_table.setRowCount(int(self.label_number_of_questions.text()[16:]))
             # -- Fetch Questions, then add them to table
