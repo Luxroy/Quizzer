@@ -345,6 +345,9 @@ class UiQuizMainWindow(object):
 
         if self.main_list_widget.count() == 0:
             self.quiz_right_frame.setEnabled(False)
+        for file in os.listdir():
+            if file.startswith("Quiz"):
+                self.main_list_widget.addItem(file[5:-5])
 
         # CONNECTIONS
         self.go_to_questionnaire_button.clicked.connect(self.switch_to_questionnaire)
@@ -567,24 +570,75 @@ class CustomQuizPopUp(QtWidgets.QDialog):
         title, ok = QtWidgets.QInputDialog.getText(self.window(), "Title", "Select a Title for the new Quiz:",
                                                    QtWidgets.QLineEdit.Normal)
         if title and ok:
+            title = title.upper()
             # -- Get un-excluded tags by user
             tag_list = self.label_excluded_tags.text().split("/")
             tag_list.pop(0)
             # -- Open questionnaire and extract filtered questions, add them to another excel file
             questionnaires = (self.label_quiz_summary.text().split("/"))
             questionnaires.pop(0)
-            # TODO: Fix adding several questionnaires, they are overwritten now
+            # -- Load first excel file, saves formatting excel files all over again
+            first_quiz_wb = openpyxl.load_workbook(f"Questionnaire_{questionnaires[0][:-2]}.xlsx")
+            first_quiz_wb.save(f"Quiz_{title}.xlsx")
+            first_sheet = first_quiz_wb.active
+            questionnaires.pop(0)
+
+            # FETCHING DATA
             for questionnaire in questionnaires:
                 questionnaire = questionnaire.replace(" \n", "")
                 wb = openpyxl.load_workbook(f"Questionnaire_{questionnaire}.xlsx")
                 sheet = wb.active
+                # -- Delete all rows containing excluded tags
                 for cell in sheet["C"]:
                     for tag in tag_list:
                         if tag in cell.value:
                             print(f"Tag {tag} was in {cell.value}")
                             sheet.delete_rows(int(cell.coordinate[1:]), 1)
-                wb.save(f"Quiz_{title.upper()}.xlsx")
+                # -- Extract relevant info
+                question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]
+                tag_list = [cell.value for cell in sheet["B"] if cell.value != "TAGS"]
+                question_tags_list = [cell.value for cell in sheet["C"] if cell.value != "QUESTION TAGS"]
+                answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER"]
+                wrong_answer_list_1 = [cell.value for cell in sheet["E"] if cell.value != "WRONG ANSWER 1"]
+                wrong_answer_list_2 = [cell.value for cell in sheet["F"] if cell.value != "WRONG ANSWER 2"]
+                wrong_answer_list_3 = [cell.value for cell in sheet["G"] if cell.value != "WRONG ANSWER 3"]
+                difficulty_list = [cell.value for cell in sheet["H"] if cell.value != "DIFFICULTY"]
+
+                # DUMPING DATA
+                # -- Append all row info on new file
+                for data in question_list:
+                    first_sheet["A" + str(first_sheet.max_row + 1)] = data
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in tag_list:
+                    first_sheet["B" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in question_tags_list:
+                    first_sheet["C" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in answer_list:
+                    first_sheet["D" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in wrong_answer_list_1:
+                    first_sheet["E" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in wrong_answer_list_2:
+                    first_sheet["F" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in wrong_answer_list_3:
+                    first_sheet["G" + str(index)] = data
+                    index += 1
+                index = first_sheet.max_row - len(question_list) + 1
+                for data in difficulty_list:
+                    first_sheet["H" + str(index)] = data
+                    index += 1
                 wb.close()
+            first_quiz_wb.save(f"Quiz_{title}.xlsx")
+            first_quiz_wb.close()
 
     def max_question_slider_changed(self):
         self.max_questions_spinBox.setValue(self.max_questions_hSlider.value())
