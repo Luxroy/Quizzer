@@ -301,9 +301,9 @@ class UiQuizMainWindow(object):
         self.main_list_widget.setLineWidth(3)
         self.main_list_widget.setObjectName("main_list_widget")
         self.formLayout.setWidget(3, QtWidgets.QFormLayout.SpanningRole, self.main_list_widget)
-        self.change_quiz_button = QtWidgets.QPushButton(self.quiz_left_frame)
-        self.change_quiz_button.setObjectName("change_quiz_button")
-        self.formLayout.setWidget(4, QtWidgets.QFormLayout.SpanningRole, self.change_quiz_button)
+        self.select_current_quiz_button = QtWidgets.QPushButton(self.quiz_left_frame)
+        self.select_current_quiz_button.setObjectName("change_quiz_button")
+        self.formLayout.setWidget(4, QtWidgets.QFormLayout.SpanningRole, self.select_current_quiz_button)
         self.go_to_questionnaire_button = QtWidgets.QPushButton(self.quiz_left_frame)
         self.go_to_questionnaire_button.setObjectName("go_to_questionnaire_button")
         self.formLayout.setWidget(10, QtWidgets.QFormLayout.SpanningRole, self.go_to_questionnaire_button)
@@ -313,7 +313,7 @@ class UiQuizMainWindow(object):
         self.label_4.raise_()
         self.label_project_nav.raise_()
         self.main_list_widget.raise_()
-        self.change_quiz_button.raise_()
+        self.select_current_quiz_button.raise_()
         self.go_to_questionnaire_button.raise_()
         self.gridLayout_2.addWidget(self.quiz_left_frame, 0, 0, 1, 1)
         self.line = QtWidgets.QFrame(self.quiz_main_widget)
@@ -338,20 +338,26 @@ class UiQuizMainWindow(object):
 
         # UI ADDITIONS
         self.quiz_left_frame.setFixedWidth(180)
+        self.label_tag_1.setAlignment(QtCore.Qt.AlignCenter)
+        self.label_tag_2.setAlignment(QtCore.Qt.AlignCenter)
 
         # CHILD WINDOW VARIABLE
         self.window = QtWidgets.QWidget()
         self.window.setGeometry(900, 400, 500, 500)
 
-        if self.main_list_widget.count() == 0:
-            self.quiz_right_frame.setEnabled(False)
+        # ADDITIONAL INIT
         for file in os.listdir():
             if file.startswith("Quiz"):
                 self.main_list_widget.addItem(file[5:-5])
+        if self.main_list_widget.count() == 0:
+            self.quiz_right_frame.setEnabled(False)
+        else:
+            self.set_active_quiz(self.main_list_widget.count() - 1)
 
         # CONNECTIONS
         self.go_to_questionnaire_button.clicked.connect(self.switch_to_questionnaire)
         self.new_quiz_button.clicked.connect(self.new_quiz)
+        self.select_current_quiz_button.clicked.connect(self.select_current_quiz)
 
     def textify(self, QuizMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -390,7 +396,7 @@ class UiQuizMainWindow(object):
         self.restart_quiz_button.setText(_translate("QuizMainWindow", "(<--)"))
         self.label_4.setText(_translate("QuizMainWindow", "Restart current Quiz"))
         self.label_project_nav.setText(_translate("QuizMainWindow", "Click here to navigate through projects:"))
-        self.change_quiz_button.setText(_translate("QuizMainWindow", "Select current quiz"))
+        self.select_current_quiz_button.setText(_translate("QuizMainWindow", "Select current quiz"))
         self.go_to_questionnaire_button.setText(_translate("QuizMainWindow", "Lets prepare more\n"
                                                                              " questionnaires!"))
 
@@ -399,10 +405,78 @@ class UiQuizMainWindow(object):
             # INSTANTIATION
             quiz_pop_up = CustomQuizPopUp()
 
+    def set_active_quiz(self, index=0):
+        # FETCHING DATA
+        wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        sheet = wb.active
+        # -- Fetching questions column in excel file, adding it to a list
+        question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS" and cell.value is not None]
+        question_tag_list = [cell.value for cell in sheet["C"] if cell.value != "QUESTION TAGS"]
+        current_question = "1"
+
+        # UPDATE UI -- Updating labels and status bar to reflect fetched data
+        self.label_number_questions.setText(f"""# of Questions: {len(question_list)} """)
+        self.label_question.setText(f"""Question {current_question}/{len(question_list)}:""")
+        self.quiz_status_bar.showMessage(f"Active questionnaire: "
+                                         f"{self.main_list_widget.item(index).text()}")
+        self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
+        current_question = int(self.label_question.text().split("/")[0][9:])
+        self.main_question_text_display.setText(question_list[current_question])
+        try:
+            self.label_tag_1.setText(question_tag_list[current_question].split("//")[0])
+        except IndexError:
+            pass
+        try:
+            self.label_tag_2.setText(question_tag_list[current_question].split("//")[1])
+        except IndexError:
+            pass
+
+        # -- Fetching difficulty values
+        if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY
+            diff_average = 0
+            count = 0
+            for cell in sheet["H"]:
+                if cell.value != "DIFFICULTY" and cell.value is not None:
+                    diff_average = diff_average + cell.value
+                    count += 1
+            average = round(diff_average / count, 2)
+            self.label_average_difficulty.setText(f"Average Difficulty: {str(average)}")
+
+        wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        wb.close()
+
+    def select_current_quiz(self):
+        # CHECK UI
+        if len(self.main_list_widget.selectedItems()) > 0:
+            item_list = [self.main_list_widget.item(i).text() for i in range(len(self.main_list_widget))]
+            # UPDATE UI
+            self.set_active_quiz(item_list.index(self.main_list_widget.selectedItems()[0].text()))
+        else:
+            self.generic_error("No quiz selected",
+                               "Please select a quiz to switch to from the list shown above.")
+
     @staticmethod
     def switch_to_questionnaire():
         QuizMainWindow.hide()
         questionnaireMainWindow.show()
+
+    @staticmethod
+    def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
+        parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
+        parent.setWindowTitle(title)
+        parent.setText(text)
+        parent.setIcon(icon)
+        parent.exec_()
+
+    @staticmethod
+    def generic_error(title="Error", text="Error Details", icon=QMessageBox.Warning):
+        parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
+        parent.setWindowTitle(title)
+        parent.setText(text)
+        parent.setIcon(icon)
+        parent.exec_()
 
 
 class CustomQuizPopUp(QtWidgets.QDialog):
@@ -948,8 +1022,7 @@ class UiQuestionnaireMainWindow(object):
         # TAB ORDER
         MainWindow.setTabOrder(self.question_line_edit, self.answer_text_edit)
 
-        # ADDITIONAL INIT
-        # -- Sets regular path to project files
+        # ADDITIONAL INIT # -- Sets regular path to project files
         self.path = os.getcwd()
         # -- Add current questionnaires to main list widget
         for file in os.listdir():
@@ -1017,12 +1090,9 @@ class UiQuestionnaireMainWindow(object):
         wb = openpyxl.load_workbook(f"Questionnaire_{self.main_list_widget.item(index).text()}.xlsx")
         sheet = wb.active
         # -- Fetching questions column in excel file, adding it to a list
-        question_list = []
-        for cell in sheet["A"]:
-            if cell.value != "QUESTIONS" and cell.value is not None:
-                question_list.append(cell.value)
-        # UPDATE UI
-        # Updating labels and status bar to reflect fetched data
+        question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS" and cell.value is not None]
+
+        # UPDATE UI -- Updating labels and status bar to reflect fetched data
         self.label_number_of_questions.setText(f"""# of Questions: {len(question_list)}""")
         self.label_question.setText(f"""Question {len(question_list) + 1}:""")
         self.questionnaire_status_bar.showMessage(f"Active questionnaire: "
@@ -1030,12 +1100,12 @@ class UiQuestionnaireMainWindow(object):
         self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
         # -- Clearing combo box from possible other questionnaires
         self.tag_combo_box.clear()
-        # FETCHING DATA AGAIN
-        # -- Fetching tags from excel file, adding them to a list
+
+        # FETCHING DATA AGAIN -- Fetching tags from excel file, adding them to a list
         for cell in sheet["B"]:  # TAGS
             if cell.value != "TAGS" and cell.value is not None:
                 self.tag_combo_box.addItem(cell.value)
-        # -- Fetching current question, allowing quiz interface change or not
+        # -- Fetching current question, enabling quiz button or not
         current_question = int(self.label_question.text().replace(":", "")[9:])
         if current_question >= 4:
             self.go_to_quizbutton.setEnabled(True)
@@ -1051,7 +1121,7 @@ class UiQuestionnaireMainWindow(object):
             self.label_added_tag_one.setText("")
             self.label_added_tag_two.setText("")
         # -- Fetching difficulty values
-        if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY  # DONE: Handle deleted questions
+        if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY
             diff_average = 0
             count = 0
             for cell in sheet["H"]:
@@ -1112,9 +1182,7 @@ class UiQuestionnaireMainWindow(object):
 
     def select_current(self):
         if len(self.main_list_widget.selectedItems()) > 0:  # Checks if there is any item selected
-            item_list = []
-            for i in range(len(self.main_list_widget)):  # Loop to add all listwidget values to a list for further index
-                item_list.append(self.main_list_widget.item(i).text())
+            item_list = [self.main_list_widget.item(i).text() for i in range(len(self.main_list_widget))]
             self.set_active_questionnaire(item_list.index(self.main_list_widget.selectedItems()[0].text()))
             if self.label_added_tag_one.text() == "" or self.label_added_tag_two.text() == "":
                 self.add_tag_to_question_button.setText("Add tag >")
