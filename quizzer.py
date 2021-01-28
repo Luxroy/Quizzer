@@ -1,8 +1,8 @@
 import os
+import random
 import openpyxl
 import xlsxwriter
 import clickable_label
-from PyQt5.QtCore import QTimer
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QInputDialog, QFileDialog, QMessageBox
 
@@ -430,7 +430,6 @@ class UiQuizMainWindow(object):
             self.label_tag_2.setText(question_tag_list[current_question].split("//")[1])
         except IndexError:
             pass
-
         # -- Fetching difficulty values
         if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY
             diff_average = 0
@@ -441,9 +440,23 @@ class UiQuizMainWindow(object):
                     count += 1
             average = round(diff_average / count, 2)
             self.label_average_difficulty.setText(f"Average Difficulty: {str(average)}")
+        # -- Update stats table
+        self.quiz_stats_table.setItem(0, 0, QtWidgets.QTableWidgetItem(str(len(question_list))))
+        self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
+            int(self.label_question.text().split("/")[0][9:]) - 1)))
+        questions = self.quiz_stats_table.item(0, 0).text()
+        answered = self.quiz_stats_table.item(0, 1).text()
+        if answered != "0":
+            self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(str(int(questions) / int(answered)) + "%"))
+        else:
+            self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem("0%"))
+        self.quiz_stats_table.setItem(0, 3, QtWidgets.QTableWidgetItem("-"))
 
         wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         wb.close()
+
+        # METHOD SERIALIZATION
+        self.start_quiz_logic(index, current_question)
 
     def select_current_quiz(self):
         # CHECK UI
@@ -454,6 +467,35 @@ class UiQuizMainWindow(object):
         else:
             self.generic_error("No quiz selected",
                                "Please select a quiz to switch to from the list shown above.")
+
+    def start_quiz_logic(self, index, current_question):
+        # FETCHING DATA
+        wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        sheet = wb.active
+
+        answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER" and cell.value is not None]
+
+        # START LOGIC
+        correct_answer = answer_list[current_question]
+        answer_list.remove(correct_answer)
+        quiz_wrong_list = [random.choice(answer_list), random.choice(answer_list), random.choice(answer_list),
+                           correct_answer]
+        choice_1 = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(choice_1)
+        choice_2 = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(choice_2)
+        choice_3 = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(choice_3)
+        choice_4 = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(choice_4)
+        print(choice_1, choice_2, choice_3, choice_4)
+        self.a_text_display.setText(str(choice_1))
+        self.b_text_display.setText(str(choice_2))
+        self.c_text_display.setText(str(choice_3))
+        self.d_text_display.setText(str(choice_4))
+
+        wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        wb.close()
 
     @staticmethod
     def switch_to_questionnaire():
