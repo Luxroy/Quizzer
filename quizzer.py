@@ -95,11 +95,11 @@ class UiQuizMainWindow(object):
         self.d_text_display.setMinimumSize(QtCore.QSize(220, 0))
         self.d_text_display.setObjectName("d_text_display")
         self.gridLayout.addWidget(self.d_text_display, 25, 3, 1, 2)
-        self.Answer_b_button = QtWidgets.QPushButton(self.quiz_right_frame)
-        self.Answer_b_button.setStyleSheet("background-color: rgb(0, 0, 0);\n"
+        self.answer_b_button = QtWidgets.QPushButton(self.quiz_right_frame)
+        self.answer_b_button.setStyleSheet("background-color: rgb(0, 0, 0);\n"
                                            "color: rgb(255, 255, 255);")
-        self.Answer_b_button.setObjectName("Answer_b_button")
-        self.gridLayout.addWidget(self.Answer_b_button, 19, 3, 1, 2)
+        self.answer_b_button.setObjectName("Answer_b_button")
+        self.gridLayout.addWidget(self.answer_b_button, 19, 3, 1, 2)
         spacerItem3 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem3, 23, 0, 1, 1)
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -280,8 +280,7 @@ class UiQuizMainWindow(object):
         self.label_project_nav.setWordWrap(True)
         self.label_project_nav.setObjectName("label_project_nav")
         self.formLayout.setWidget(2, QtWidgets.QFormLayout.SpanningRole, self.label_project_nav)
-        spacerItem10 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.formLayout.setItem(5, QtWidgets.QFormLayout.LabelRole, spacerItem10)
+
         spacerItem11 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.formLayout.setItem(6, QtWidgets.QFormLayout.LabelRole, spacerItem11)
         spacerItem12 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
@@ -340,6 +339,10 @@ class UiQuizMainWindow(object):
         self.quiz_left_frame.setFixedWidth(180)
         self.label_tag_1.setAlignment(QtCore.Qt.AlignCenter)
         self.label_tag_2.setAlignment(QtCore.Qt.AlignCenter)
+        self.delete_quiz_button = QtWidgets.QPushButton(self.quiz_left_frame)
+        self.delete_quiz_button.setText("Delete quiz")
+        self.formLayout.setWidget(5, QtWidgets.QFormLayout.SpanningRole, self.delete_quiz_button)
+        self.delete_quiz_button.raise_()
 
         # CHILD WINDOW VARIABLE
         self.window = QtWidgets.QWidget()
@@ -358,6 +361,11 @@ class UiQuizMainWindow(object):
         self.go_to_questionnaire_button.clicked.connect(self.switch_to_questionnaire)
         self.new_quiz_button.clicked.connect(self.new_quiz)
         self.select_current_quiz_button.clicked.connect(self.select_current_quiz)
+        self.delete_quiz_button.clicked.connect(self.delete_quiz)
+        self.answer_a_button.clicked.connect(lambda: self.check_correct_or_wrong("a"))
+        self.answer_b_button.clicked.connect(lambda: self.check_correct_or_wrong("b"))
+        self.answer_c_button.clicked.connect(lambda: self.check_correct_or_wrong("c"))
+        self.answer_d_button.clicked.connect(lambda: self.check_correct_or_wrong("d"))
 
     def textify(self, QuizMainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -368,7 +376,7 @@ class UiQuizMainWindow(object):
         self.label_number_questions.setText(_translate("QuizMainWindow", "# of questions:"))
         self.label_quiz_details.setText(_translate("QuizMainWindow", "Quiz Details:"))
         self.label_d.setText(_translate("QuizMainWindow", "d)"))
-        self.Answer_b_button.setText(_translate("QuizMainWindow", "Answer b)"))
+        self.answer_b_button.setText(_translate("QuizMainWindow", "Answer b)"))
         self.answer_c_button.setText(_translate("QuizMainWindow", "Answer c)"))
         self.label_project_title_questionnaire.setText(_translate("QuizMainWindow", "Quiz Title"))
         self.label_question.setText(_translate("QuizMainWindow", "Question:"))
@@ -475,26 +483,62 @@ class UiQuizMainWindow(object):
 
         answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER" and cell.value is not None]
 
-        # START LOGIC
+        # START LOGIC -- Avoid duplicates (Could be optimized)
         correct_answer = answer_list[current_question]
         answer_list.remove(correct_answer)
-        quiz_wrong_list = [random.choice(answer_list), random.choice(answer_list), random.choice(answer_list),
-                           correct_answer]
-        choice_1 = random.choice(quiz_wrong_list)
-        quiz_wrong_list.remove(choice_1)
-        choice_2 = random.choice(quiz_wrong_list)
-        quiz_wrong_list.remove(choice_2)
-        choice_3 = random.choice(quiz_wrong_list)
-        quiz_wrong_list.remove(choice_3)
-        choice_4 = random.choice(quiz_wrong_list)
-        quiz_wrong_list.remove(choice_4)
-        print(choice_1, choice_2, choice_3, choice_4)
-        self.a_text_display.setText(str(choice_1))
-        self.b_text_display.setText(str(choice_2))
-        self.c_text_display.setText(str(choice_3))
-        self.d_text_display.setText(str(choice_4))
+        choice_1 = random.choice(answer_list)
+        answer_list.remove(choice_1)
+        choice_2 = random.choice(answer_list)
+        answer_list.remove(choice_2)
+        choice_3 = random.choice(answer_list)
+        answer_list.remove(choice_3)
+        quiz_wrong_list = [choice_1, choice_2, choice_3, correct_answer]
+        a = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(a)
+        b = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(b)
+        c = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(c)
+        d = random.choice(quiz_wrong_list)
+        quiz_wrong_list.remove(d)
+        self.a_text_display.setPlainText(str(a))
+        self.b_text_display.setPlainText(str(b))
+        self.c_text_display.setPlainText(str(c))
+        self.d_text_display.setPlainText(str(d))
 
-        wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
+        wb.close()
+
+    def delete_quiz(self):
+        # SHOW CONFIRMATION WIDGET
+        confirmation = QtWidgets.QMessageBox.question(self.window, "Confirmation",
+                                                      f"Are you sure you want to permanently delete this quiz?:\n\n"
+                                                      f"{self.main_list_widget.selectedItems()[0].text()}")
+        # DELETE EXCEL FILE
+        if confirmation == QMessageBox.Yes:
+            try:
+                deleted_quiz = f"Quiz_{self.main_list_widget.selectedItems()[0].text()}.xlsx"
+                os.remove(deleted_quiz)
+                quiz_ui.__init__()
+            except IndexError:
+                self.generic_error("No questionnaire selected", "Please select a questionnaire from the list above to "
+                                                                "delete it")
+        else:
+            self.generic_information("", "Questionnaire was not deleted.")
+
+    def check_correct_or_wrong(self, letter):
+        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        sheet = wb.active
+        question = self.main_question_text_display.toPlainText()
+        user_answer = getattr(self, letter + "_text_display").toPlainText()
+        for cell in sheet["A"]:
+            if cell.value == question:
+                correct_answer = sheet["D" + cell.coordinate[1:]].value
+                break
+        if user_answer == correct_answer:
+            print("Correct!")
+        else:
+            print("Wrong")
+
         wb.close()
 
     @staticmethod
@@ -694,7 +738,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
             questionnaires = (self.label_quiz_summary.text().split("/"))
             questionnaires.pop(0)
             # -- Load first excel file, saves formatting excel files all over again
-            first_quiz_wb = openpyxl.load_workbook(f"Questionnaire_{questionnaires[0][:-2]}.xlsx")
+            first_quiz_wb = openpyxl.load_workbook(f"Questionnaire_{questionnaires[0]}.xlsx")
             first_quiz_wb.save(f"Quiz_{title}.xlsx")
             first_sheet = first_quiz_wb.active
             questionnaires.pop(0)
@@ -710,6 +754,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
                         if tag in cell.value:
                             print(f"Tag {tag} was in {cell.value}")
                             sheet.delete_rows(int(cell.coordinate[1:]), 1)
+                # TODO: Limit to max questions in quiz
                 # -- Extract relevant info
                 question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS"]
                 tag_list = [cell.value for cell in sheet["B"] if cell.value != "TAGS"]
@@ -755,6 +800,27 @@ class CustomQuizPopUp(QtWidgets.QDialog):
                 wb.close()
             first_quiz_wb.save(f"Quiz_{title}.xlsx")
             first_quiz_wb.close()
+
+            self.generic_information("Successful Operation", f"Quiz {title} was successfully created!")
+            CustomQuizPopUp.close(self)
+
+    @staticmethod
+    def generic_information(title="Information", text="Details", icon=QMessageBox.Information):
+        parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
+        parent.setWindowTitle(title)
+        parent.setText(text)
+        parent.setIcon(icon)
+        parent.exec_()
+
+    @staticmethod
+    def generic_error(title="Error", text="Error Details", icon=QMessageBox.Warning):
+        parent = QtWidgets.QMessageBox()
+        parent.setGeometry(800, 300, 500, 500)
+        parent.setWindowTitle(title)
+        parent.setText(text)
+        parent.setIcon(icon)
+        parent.exec_()
 
     def max_question_slider_changed(self):
         self.max_questions_spinBox.setValue(self.max_questions_hSlider.value())
