@@ -12,7 +12,7 @@ class UiQuizMainWindow(object):
         super().__init__()
         QuizMainWindow.setObjectName("QuizMainWindow")
         QuizMainWindow.resize(688, 690)
-        QuizMainWindow.setGeometry(150, 400, 500, 500)
+        QuizMainWindow.setGeometry(800, 300, 500, 500)
         self.quiz_main_widget = QtWidgets.QWidget(QuizMainWindow)
         self.quiz_main_widget.setObjectName("quiz_main_widget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.quiz_main_widget)
@@ -417,27 +417,27 @@ class UiQuizMainWindow(object):
         # FETCHING DATA
         wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         sheet = wb.active
+
         # -- Fetching questions column in excel file, adding it to a list
-        question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS" and cell.value is not None]
-        question_tag_list = [cell.value for cell in sheet["C"] if cell.value != "QUESTION TAGS"]
+        self.question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS" and cell.value is not None]
+        self.question_tag_list = [cell.value for cell in sheet["C"] if cell.value != "QUESTION TAGS"]
+        # TODO: Figure why the hell is this len 15 and not 19 in tests
+        self.answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER"]
+        questions_and_tags = list(zip(self.question_list, self.question_tag_list, self.answer_list))
+        random.shuffle(questions_and_tags)
+        self.question_list, self.question_tag_list, self.answer_list = zip(*questions_and_tags)
+        self.answer_list = list(self.answer_list)
+        shuffle_list = [i for i in range(len(self.question_list))]
+        random.shuffle(shuffle_list)
         current_question = "1"
 
         # UPDATE UI -- Updating labels and status bar to reflect fetched data
-        self.label_number_questions.setText(f"""# of Questions: {len(question_list)} """)
-        self.label_question.setText(f"""Question {current_question}/{len(question_list)}:""")
+        self.label_number_questions.setText(f"""# of Questions: {len(self.question_list)} """)
+        self.label_question.setText(f"""Question {current_question}/{len(self.question_list)}:""")
         self.quiz_status_bar.showMessage(f"Active questionnaire: "
                                          f"{self.main_list_widget.item(index).text()}")
         self.label_project_title_questionnaire.setText(self.main_list_widget.item(index).text())
-        current_question = int(self.label_question.text().split("/")[0][9:])
-        self.main_question_text_display.setText(question_list[current_question])
-        try:
-            self.label_tag_1.setText(question_tag_list[current_question].split("//")[0])
-        except IndexError:
-            pass
-        try:
-            self.label_tag_2.setText(question_tag_list[current_question].split("//")[1])
-        except IndexError:
-            pass
+
         # -- Fetching difficulty values
         if sheet["H2"].value != "" and sheet["H2"].value is not None:  # DIFFICULTY
             diff_average = 0
@@ -448,23 +448,36 @@ class UiQuizMainWindow(object):
                     count += 1
             average = round(diff_average / count, 2)
             self.label_average_difficulty.setText(f"Average Difficulty: {str(average)}")
-        # -- Update stats table
-        self.quiz_stats_table.setItem(0, 0, QtWidgets.QTableWidgetItem(str(len(question_list))))
+
+        # -- Show question text and tags
+        current_question = int(self.label_question.text().split("/")[0][9:])
+        self.main_question_text_display.setPlainText(self.question_list[0])
+        try:
+            self.label_tag_1.setText(self.question_tag_list[0].split("//")[0])
+        except IndexError:
+            pass
+        try:
+            self.label_tag_2.setText(self.question_tag_list[0].split("//")[1])
+        except IndexError:
+            pass
+
+        # -- Update stats table # TODO: Fix shown answered questions
+        self.quiz_stats_table.setItem(0, 0, QtWidgets.QTableWidgetItem(str(len(self.question_list))))
         self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
             int(self.label_question.text().split("/")[0][9:]) - 1)))
         questions = self.quiz_stats_table.item(0, 0).text()
         answered = self.quiz_stats_table.item(0, 1).text()
         if answered != "0":
-            self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(str(int(questions) / int(answered)) + "%"))
+            self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(
+                str(round(int(questions) / int(answered), 2)) + "%"))
         else:
             self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem("0%"))
         self.quiz_stats_table.setItem(0, 3, QtWidgets.QTableWidgetItem("-"))
 
-        wb.save(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
         wb.close()
 
         # METHOD SERIALIZATION
-        self.start_quiz_logic(index, current_question)
+        self.start_quiz_logic(0, self.answer_list)
 
     def select_current_quiz(self):
         # CHECK UI
@@ -476,22 +489,18 @@ class UiQuizMainWindow(object):
             self.generic_error("No quiz selected",
                                "Please select a quiz to switch to from the list shown above.")
 
-    def start_quiz_logic(self, index, current_question):
-        # FETCHING DATA
-        wb = openpyxl.load_workbook(f"Quiz_{self.main_list_widget.item(index).text()}.xlsx")
-        sheet = wb.active
-
-        answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER" and cell.value is not None]
-
+    def start_quiz_logic(self, current_question, answer_list):
         # START LOGIC -- Avoid duplicates (Could be optimized)
-        correct_answer = answer_list[current_question]
-        answer_list.remove(correct_answer)
-        choice_1 = random.choice(answer_list)
-        answer_list.remove(choice_1)
-        choice_2 = random.choice(answer_list)
-        answer_list.remove(choice_2)
-        choice_3 = random.choice(answer_list)
-        answer_list.remove(choice_3)
+        temp_list = answer_list
+        # TODO: FIX, no more remove statements, they are breaking the program
+        correct_answer = temp_list[current_question]
+        temp_list.remove(correct_answer)
+        choice_1 = random.choice(temp_list)
+        temp_list.remove(choice_1)
+        choice_2 = random.choice(temp_list)
+        temp_list.remove(choice_2)
+        choice_3 = random.choice(temp_list)
+        temp_list.remove(choice_3)
         quiz_wrong_list = [choice_1, choice_2, choice_3, correct_answer]
         a = random.choice(quiz_wrong_list)
         quiz_wrong_list.remove(a)
@@ -505,8 +514,6 @@ class UiQuizMainWindow(object):
         self.b_text_display.setPlainText(str(b))
         self.c_text_display.setPlainText(str(c))
         self.d_text_display.setPlainText(str(d))
-
-        wb.close()
 
     def delete_quiz(self):
         # SHOW CONFIRMATION WIDGET
@@ -536,6 +543,31 @@ class UiQuizMainWindow(object):
                 break
         if user_answer == correct_answer:
             print("Correct!")
+            current_question = int(self.label_question.text().split("/")[0][9:])
+            self.label_question.setText(f"""Question {current_question}/{self.quiz_stats_table.item(0, 0).text()}:""")
+
+            # -- Show question text and tags
+            current_question = int(self.label_question.text().split("/")[0][9:])
+            self.main_question_text_display.setPlainText(self.question_list[current_question])
+            try:
+                self.label_tag_1.setText(self.question_tag_list[current_question].split("//")[0])
+            except IndexError:
+                pass
+            try:
+                self.label_tag_2.setText(self.question_tag_list[current_question].split("//")[1])
+            except IndexError:
+                pass
+
+            self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
+                int(self.label_question.text().split("/")[0][9:]) - 1)))
+            questions = self.quiz_stats_table.item(0, 0).text()
+            answered = self.quiz_stats_table.item(0, 1).text()
+            if answered != "0":
+                self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(
+                    str(round(int(questions) / int(answered), 2)) + "%"))
+
+            answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER"]
+            self.start_quiz_logic(current_question, self.answer_list)
         else:
             print("Wrong")
 
@@ -1827,7 +1859,7 @@ class QuizzerMainWindow(object):
     def __init__(self):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(483, 492)
-        MainWindow.setGeometry(150, 400, 500, 500)
+        MainWindow.setGeometry(800, 300, 500, 500)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
