@@ -4,7 +4,7 @@ import openpyxl
 import xlsxwriter
 import clickable_label
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QInputDialog, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QMessageBox
 
 
 class UiQuizMainWindow(object):
@@ -421,12 +421,13 @@ class UiQuizMainWindow(object):
         # -- Fetching questions column in excel file, adding it to a list
         self.question_list = [cell.value for cell in sheet["A"] if cell.value != "QUESTIONS" and cell.value is not None]
         self.question_tag_list = [cell.value for cell in sheet["C"] if cell.value != "QUESTION TAGS"]
-        # TODO: Figure why the hell is this len 15 and not 19 in tests
         self.answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER"]
+
+        # -- Shuffling
         questions_and_tags = list(zip(self.question_list, self.question_tag_list, self.answer_list))
         random.shuffle(questions_and_tags)
         self.question_list, self.question_tag_list, self.answer_list = zip(*questions_and_tags)
-        self.answer_list = list(self.answer_list)
+        answer_list = list(self.answer_list)
         shuffle_list = [i for i in range(len(self.question_list))]
         random.shuffle(shuffle_list)
         current_question = "1"
@@ -461,7 +462,7 @@ class UiQuizMainWindow(object):
         except IndexError:
             pass
 
-        # -- Update stats table # TODO: Fix shown answered questions
+        # -- Update stats table
         self.quiz_stats_table.setItem(0, 0, QtWidgets.QTableWidgetItem(str(len(self.question_list))))
         self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
             int(self.label_question.text().split("/")[0][9:]) - 1)))
@@ -477,7 +478,7 @@ class UiQuizMainWindow(object):
         wb.close()
 
         # METHOD SERIALIZATION
-        self.start_quiz_logic(0, self.answer_list)
+        self.start_quiz_logic(0, answer_list)
 
     def select_current_quiz(self):
         # CHECK UI
@@ -490,18 +491,35 @@ class UiQuizMainWindow(object):
                                "Please select a quiz to switch to from the list shown above.")
 
     def start_quiz_logic(self, current_question, answer_list):
-        # START LOGIC -- Avoid duplicates (Could be optimized)
-        temp_list = answer_list
-        # TODO: FIX, no more remove statements, they are breaking the program
-        correct_answer = temp_list[current_question]
-        temp_list.remove(correct_answer)
-        choice_1 = random.choice(temp_list)
-        temp_list.remove(choice_1)
-        choice_2 = random.choice(temp_list)
-        temp_list.remove(choice_2)
-        choice_3 = random.choice(temp_list)
-        temp_list.remove(choice_3)
-        quiz_wrong_list = [choice_1, choice_2, choice_3, correct_answer]
+        # START LOGIC
+        wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
+        sheet = wb.active
+        question = self.main_question_text_display.toPlainText()
+        for cell in sheet["A"]:
+            if cell.value == question:
+                correct_answer = sheet["D" + cell.coordinate[1:]].value
+                break
+        wb.close()
+
+        # -- Disable repeated answers
+        index_list = [i for i in range(len(answer_list))]
+        specific_index_list = []
+        v = answer_list.index(correct_answer)
+        specific_index_list.append(v)
+        index_list.remove(v)
+
+        x = random.choice(index_list)
+        specific_index_list.append(x)
+        index_list.remove(x)
+        y = random.choice(index_list)
+        specific_index_list.append(y)
+        index_list.remove(y)
+        z = random.choice(index_list)
+        specific_index_list.append(z)
+        index_list.remove(z)
+
+        quiz_wrong_list = [answer_list[x], answer_list[y],
+                           answer_list[z], correct_answer]
         a = random.choice(quiz_wrong_list)
         quiz_wrong_list.remove(a)
         b = random.choice(quiz_wrong_list)
@@ -510,6 +528,7 @@ class UiQuizMainWindow(object):
         quiz_wrong_list.remove(c)
         d = random.choice(quiz_wrong_list)
         quiz_wrong_list.remove(d)
+
         self.a_text_display.setPlainText(str(a))
         self.b_text_display.setPlainText(str(b))
         self.c_text_display.setPlainText(str(c))
@@ -543,11 +562,15 @@ class UiQuizMainWindow(object):
                 break
         if user_answer == correct_answer:
             print("Correct!")
-            current_question = int(self.label_question.text().split("/")[0][9:])
+            current_question = int(self.label_question.text().split("/")[0][9:]) + 1
             self.label_question.setText(f"""Question {current_question}/{self.quiz_stats_table.item(0, 0).text()}:""")
 
             # -- Show question text and tags
-            current_question = int(self.label_question.text().split("/")[0][9:])
+            current_question = int(self.label_question.text().split("/")[0][9:]) - 1
+            # -- Stop when we've reached last question
+            if current_question == int(self.label_number_questions.text()[16:]):
+                self.generic_information("Quiz Completed", "Quiz was completed with the following score:\n")
+                return None
             self.main_question_text_display.setPlainText(self.question_list[current_question])
             try:
                 self.label_tag_1.setText(self.question_tag_list[current_question].split("//")[0])
@@ -770,7 +793,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
             questionnaires = (self.label_quiz_summary.text().split("/"))
             questionnaires.pop(0)
             # -- Load first excel file, saves formatting excel files all over again
-            first_quiz_wb = openpyxl.load_workbook(f"Questionnaire_{questionnaires[0]}.xlsx")
+            first_quiz_wb = openpyxl.load_workbook(f"Questionnaire_{questionnaires[0][:-2]}.xlsx") # TODO: FIX, broken
             first_quiz_wb.save(f"Quiz_{title}.xlsx")
             first_sheet = first_quiz_wb.active
             questionnaires.pop(0)
@@ -834,6 +857,7 @@ class CustomQuizPopUp(QtWidgets.QDialog):
             first_quiz_wb.close()
 
             self.generic_information("Successful Operation", f"Quiz {title} was successfully created!")
+            UiQuizMainWindow.__init__()
             CustomQuizPopUp.close(self)
 
     @staticmethod
@@ -1650,7 +1674,7 @@ class UiQuestionnaireMainWindow(object):
                 else:
                     # -- For every cell in B column, check for an empty space, then relocate tag value
                     for cell in sheet["B"]:
-                        if cell.value != "TAGS" and cell.value is None:  # TODO: Handle less questions than tags
+                        if cell.value != "TAGS" and cell.value is None:
                             sheet[cell.coordinate] = tag
                             break
                     sheet.delete_rows((question_list.index(choice) + 2), 1)
@@ -1757,8 +1781,7 @@ class UiQuestionnaireMainWindow(object):
                     custom_table.preview_table.setItem(row, 0, QtWidgets.QTableWidgetItem(cell.value))
                     row += 1
                     if len(cell.value) > 30:
-                        custom_table.preview_table.setRowHeight(row - 1,
-                                                                60)  # TODO: Check if this works in first question
+                        custom_table.preview_table.setRowHeight(row - 1, 60)
             # -- Fetch Tags, then add them to table
             row = 0
             for cell in sheet["C"]:
