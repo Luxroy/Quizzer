@@ -335,6 +335,9 @@ class UiQuizMainWindow(object):
         self.textify(QuizMainWindow)
         QtCore.QMetaObject.connectSlotsByName(QuizMainWindow)
 
+        # CLASS VARIABLES
+        self.tried = False
+
         # UI ADDITIONS
         self.quiz_left_frame.setFixedWidth(180)
         self.label_tag_1.setAlignment(QtCore.Qt.AlignCenter)
@@ -534,6 +537,13 @@ class UiQuizMainWindow(object):
         self.c_text_display.setPlainText(str(c))
         self.d_text_display.setPlainText(str(d))
 
+        common_style = "background-color: rgb(255, 255, 255);"
+        letters = ["a", "b", "c", "d"]
+        for i in letters:
+            getattr(self, i + "_text_display").setStyleSheet(common_style)
+        for i in ["a", "b", "c", "d"]:
+            getattr(self, "answer_" + i + "_button").setEnabled(True)
+
     def delete_quiz(self):
         # SHOW CONFIRMATION WIDGET
         confirmation = QtWidgets.QMessageBox.question(self.window, "Confirmation",
@@ -552,25 +562,37 @@ class UiQuizMainWindow(object):
             self.generic_information("", "Questionnaire was not deleted.")
 
     def check_correct_or_wrong(self, letter):
+        # FETCH DATA
         wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
         sheet = wb.active
         question = self.main_question_text_display.toPlainText()
+        # -- Get user answer
         user_answer = getattr(self, letter + "_text_display").toPlainText()
+        # -- Get correct answer
         for cell in sheet["A"]:
             if cell.value == question:
                 correct_answer = sheet["D" + cell.coordinate[1:]].value
                 break
+        questions = self.quiz_stats_table.item(0, 0).text()
+        if not self.tried:
+            tries = int(questions)
+        else:
+            tries = int(round(int(self.quiz_stats_table.item(0, 3).text().replace("%", "").split(".")[0]) / 100
+                        * int(questions)))
+        percentage_correct = (tries / int(questions)) * 100
         if user_answer == correct_answer:
-            print("Correct!")
+            # CORRECT ANSWER LOGIC
             current_question = int(self.label_question.text().split("/")[0][9:]) + 1
             self.label_question.setText(f"""Question {current_question}/{self.quiz_stats_table.item(0, 0).text()}:""")
-
             # -- Show question text and tags
             current_question = int(self.label_question.text().split("/")[0][9:]) - 1
+
             # -- Stop when we've reached last question
             if current_question == int(self.label_number_questions.text()[16:]):
                 self.generic_information("Quiz Completed", "Quiz was completed with the following score:\n")
                 return None
+
+            # -- Display current question if we haven't reached last question
             self.main_question_text_display.setPlainText(self.question_list[current_question])
             try:
                 self.label_tag_1.setText(self.question_tag_list[current_question].split("//")[0])
@@ -581,18 +603,52 @@ class UiQuizMainWindow(object):
             except IndexError:
                 pass
 
+            # -- Update Stats table
             self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
                 int(self.label_question.text().split("/")[0][9:]) - 1)))
-            questions = self.quiz_stats_table.item(0, 0).text()
+
             answered = self.quiz_stats_table.item(0, 1).text()
             if answered != "0":
                 self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(
-                    str(round(int(questions) / int(answered), 2)) + "%"))
+                    str(round((int(answered) / int(questions) * 100), 2)) + "%"))
+                self.quiz_stats_table.setItem(0, 3, QtWidgets.QTableWidgetItem(
+                    str(round(percentage_correct, 2)) + "%"))
 
-            answer_list = [cell.value for cell in sheet["D"] if cell.value != "ANSWER"]
-            self.start_quiz_logic(current_question, self.answer_list)
+            # -- Color correct
+            correct_style_sheet = "background-color: rgb(50, 255, 50);"
+            getattr(self, letter + "_text_display").setStyleSheet(correct_style_sheet)
+
+        # -- Disable all answer buttons
+            for i in ["a", "b", "c", "d"]:
+                getattr(self, "answer_" + i + "_button").setEnabled(False)
+
+            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(current_question, self.answer_list))
+
         else:
-            print("Wrong")
+            current_question = int(self.label_question.text().split("/")[0][9:]) - 1
+            # -- Update Stats table
+            tries -= 1
+            self.tried = True
+            percentage_correct = (tries / int(questions)) * 100
+            self.quiz_stats_table.setItem(0, 3, QtWidgets.QTableWidgetItem(
+                str(round(percentage_correct, 2)) + "%"))
+
+            # -- Color wrong
+            wrong_style_sheet = "background-color: rgb(255, 50, 50);"
+            getattr(self, letter + "_text_display").setStyleSheet(wrong_style_sheet)
+
+            for i in ["a", "b", "c", "d"]:
+                if getattr(self, i + "_text_display").toPlainText() == correct_answer:
+                    correct_letter = i
+                    break
+            correct_style_sheet = "background-color: rgb(50, 255, 50);"
+            getattr(self, correct_letter + "_text_display").setStyleSheet(correct_style_sheet)
+
+            # -- Disable all answer buttons
+            for i in ["a", "b", "c", "d"]:
+                getattr(self, "answer_" + i + "_button").setEnabled(False)
+
+            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(current_question, self.answer_list))
 
         wb.close()
 
