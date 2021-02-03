@@ -481,7 +481,7 @@ class UiQuizMainWindow(object):
         wb.close()
 
         # METHOD SERIALIZATION
-        self.start_quiz_logic(0, answer_list)
+        self.start_quiz_logic(answer_list)
 
     def select_current_quiz(self):
         # CHECK UI
@@ -493,7 +493,7 @@ class UiQuizMainWindow(object):
             self.generic_error("No quiz selected",
                                "Please select a quiz to switch to from the list shown above.")
 
-    def start_quiz_logic(self, current_question, answer_list):
+    def start_quiz_logic(self, answer_list):
         # START LOGIC
         wb = openpyxl.load_workbook(f"Quiz_{self.label_project_title_questionnaire.text()}.xlsx")
         sheet = wb.active
@@ -622,11 +622,26 @@ class UiQuizMainWindow(object):
             for i in ["a", "b", "c", "d"]:
                 getattr(self, "answer_" + i + "_button").setEnabled(False)
 
-            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(current_question, self.answer_list))
+            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(self.answer_list))
 
         else:
+            # -- Update Stats table # TODO: Fix numbering, somehow its sometimes advancing by two
+            current_question = int(self.label_question.text().split("/")[0][9:]) + 1
+            self.label_question.setText(f"""Question {current_question}/{self.quiz_stats_table.item(0, 0).text()}:""")
+            # -- Show question text and tags
             current_question = int(self.label_question.text().split("/")[0][9:]) - 1
-            # -- Update Stats table
+
+            # -- Stop when we've reached last question
+            if current_question == int(self.label_number_questions.text()[16:]):
+                self.generic_information("Quiz Completed", "Quiz was completed with the following score:\n")
+                return None
+
+            self.quiz_stats_table.setItem(0, 1, QtWidgets.QTableWidgetItem(str(
+                int(self.label_question.text().split("/")[0][9:]))))
+            answered = self.quiz_stats_table.item(0, 1).text()
+            if answered != "0":
+                self.quiz_stats_table.setItem(0, 2, QtWidgets.QTableWidgetItem(
+                    str(round((int(answered) / int(questions) * 100), 2)) + "%"))
             tries -= 1
             self.tried = True
             percentage_correct = (tries / int(questions)) * 100
@@ -648,7 +663,7 @@ class UiQuizMainWindow(object):
             for i in ["a", "b", "c", "d"]:
                 getattr(self, "answer_" + i + "_button").setEnabled(False)
 
-            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(current_question, self.answer_list))
+            QtCore.QTimer.singleShot(2000, lambda: self.start_quiz_logic(self.answer_list))
 
         wb.close()
 
